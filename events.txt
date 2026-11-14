@@ -1,0 +1,6 @@
+# Event days. One per line:  YYYY-MM-DD [HH:MM] description
+# No selling at all on these days. Buys only after HH:MM plus one closed
+# 5-min candle; if no time is given, no buys all day. B2 is off all day.
+# Add RBI policy, Union Budget, election results, and the session after
+# US CPI / FOMC. Example:
+# 2026-12-04 10:00 RBI policy
