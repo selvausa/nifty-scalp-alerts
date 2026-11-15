@@ -149,9 +149,28 @@ The review command makes a few dozen Groww requests on its baseline run, to stor
 
 Pushing `data/cache` (market candles only; `.env` is not included) lets the team rerun experiments in the review session. Without it, only the fixed set of 70 can be analysed.
 
-## 8. Open questions
+## 8. Owner's answers and what they imply
 
-1. Is the 0.5-point slippage realistic for you? On Groww, do NIFTY weekly options near the money fill at the touch, or do you usually give up a tick or two?
-2. Is your brokerage ₹20 per order? Charges are 30% of the loss, and a plan with lower brokerage changes S2 materially.
-3. May the team fetch an out-of-sample window (for example 2025-11-01 to 2026-04-30)? It costs about 25 minutes and 3,400 Groww requests, once.
-4. Do you intend to trade one lot? The one-lot rule (stop to entry + 2 and trail) is what removes B1's wins; with two lots the sheet books half at T1.
+| Question | Answer | Effect on the review |
+| --- | --- | --- |
+| Slippage | 0.5 is not fixed; use an industry-standard figure | Sweeps cover 0, 0.1, 0.25, 0.5 and 1.0 points per fill. The right figure is still to be chosen; see open question 1 |
+| Brokerage | ₹20 per order | Unchanged. Being flat per order, its cost per lot falls as lots rise |
+| Position size | Up to 8–10 lots | The one-lot exit rule no longer has to apply. Experiments now cover 2, 8 and 10 lots and the sheet's rule for two or more lots: sell half at T1 and trail the rest |
+
+Estimate from the console numbers, before any sweep. It assumes the same 35 trades and the same exits, with only costs changing.
+
+| Lots | Slippage per fill | Charges per lot | Slippage per lot | Net per lot | Net for the whole position |
+| --- | --- | --- | --- | --- | --- |
+| 1 | 0.5 | ₹3,266 | ₹3,705 | −₹10,936 | −₹10,936 |
+| 8 | 0.5 | ₹912 | ₹3,705 | −₹8,582 | −₹68,656 |
+| 8 | 0.25 | ₹912 | ₹1,852 | −₹6,730 | −₹53,836 |
+| 8 | 0.1 | ₹912 | ₹741 | −₹5,618 | −₹44,944 |
+| 10 | 0.25 | ₹845 | ₹1,852 | −₹6,662 | −₹66,622 |
+
+More lots cut charges per lot by about 72%, but the trades lose ₹3,965 per lot before any cost. So a larger position loses more in total, not less, until the gross result turns positive. The one-lot row reproduces the console's −₹10,949 to within ₹13, which checks the split of fixed and per-lot charges.
+
+## 9. Open questions
+
+1. Which slippage figure should the team treat as the base case? A common choice for near-the-money NIFTY weekly options is 0.25 points per fill; 0.1 is two ticks and optimistic for a market order. This is an assumption to pick, not something the data can settle without bid-ask history.
+2. May the team fetch an out-of-sample window (for example 2025-11-01 to 2026-04-30)? It costs about 25 minutes and 3,400 Groww requests, once.
+3. With 8–10 lots available, should the base case use the sheet's two-or-more-lots exit rule (sell half at T1, trail the rest) from now on?

@@ -83,7 +83,14 @@ def delta_from_price(price: float, spot: float, strike: float, expiry: date, now
 def round_trip_cost(buys: list[float], sells: list[float], lot: int, brokerage: float = 20.0) -> float:
     """Charges for a set of fills at the cheat sheet's rates (section 7).
     `buys` and `sells` are premium prices, one entry per order."""
-    bt, st = sum(buys) * lot, sum(sells) * lot
+    return charges([(p, 1.0) for p in buys], [(p, 1.0) for p in sells], lot, brokerage)
+
+
+def charges(buys: list[tuple[float, float]], sells: list[tuple[float, float]], qty: int,
+            brokerage: float = 20.0) -> float:
+    """Charges for orders given as (price, share of the position). Brokerage is flat per
+    order whatever the quantity, so its cost per lot falls as lots rise; the rest scales."""
+    bt, st = sum(p * f for p, f in buys) * qty, sum(p * f for p, f in sells) * qty
     brok = brokerage * (len(buys) + len(sells))
     exch = 0.0003553 * (bt + st)
     sebi = 10 / 1e7 * (bt + st)
@@ -362,6 +369,8 @@ class Position:
     t1_done: bool = False
     fills_buy: list[float] = field(default_factory=list)
     fills_sell: list[float] = field(default_factory=list)
+    booked: float = 0.0                   # share of a long position already sold at T1
+    booked_px: float = 0.0
 
 
 @dataclass
@@ -384,6 +393,10 @@ class Options:
     credit_stop: float = 1.5                  # spreads: stop when value reaches this multiple of the credit
     index_stop: bool = True                   # spreads: apply the setup's index stop
     entry_credit_min: Optional[float] = None  # spreads: minimum credit at the fill; None = the rule's minimum
+    lots: int = 1                             # position size; rupee figures stay per lot. Brokerage is per order,
+                                              # so more lots mean lower charges per lot
+    t1_book_fraction: float = 0.0             # buys: share sold at T1 (the sheet's two-lot rule is 0.5); the rest
+                                              # follows the after-T1 rules. 0 = the one-lot rule
     stop_fill: str = "stop"                   # buys: "stop" fills at the stop price; "open_if_worse" fills at the
                                               # candle's open when it opened already through the stop
 
@@ -594,7 +607,11 @@ class Backtest:
                 px = float(last["c"].iloc[-1]) if not last.empty else tr.entry
             px = max(px - slip, 0.05)
             pos.fills_sell.append(px)
-            tr.exit, tr.points = px, px - tr.entry
+            rest = 1.0 - pos.booked
+            tr.exit = pos.booked * pos.booked_px + rest * px          # average exit price
+            tr.points = tr.exit - tr.entry
+            sells = ([(pos.booked_px, pos.booked)] if pos.booked else []) + [(px, rest)]
+            buys = [(tr.entry, 1.0)]
         else:
             cost = 0.0
             for f, sign in zip(pos.frames, pos.signs):
@@ -604,10 +621,12 @@ class Backtest:
                 (pos.fills_sell if sign > 0 else pos.fills_buy).append(fill)
                 cost -= sign * fill
             tr.exit, tr.points = cost, tr.entry - cost
-        tr.charges = round_trip_cost(pos.fills_buy, pos.fills_sell, lot)
+            buys, sells = [(p, 1.0) for p in pos.fills_buy], [(p, 1.0) for p in pos.fills_sell]
+        n = max(1, self.o.lots)
+        tr.charges = charges(buys, sells, lot * n) / n               # per lot
         tr.rupees = tr.points * lot - tr.charges
-        tr.fills = len(pos.fills_buy) + len(pos.fills_sell)
-        tr.slippage_pts = tr.fills * slip
+        tr.fills = len(buys) + len(sells)
+        tr.slippage_pts = slip * sum(f for _, f in buys + sells)     # weighted by the share each order filled
         tr.bars, tr.t1_hit = pos.bars, pos.t1_done
         tr.exit_time, tr.reason = pd.Timestamp(when).to_pydatetime(), reason
         self.trades.append(tr)
@@ -641,6 +660,9 @@ class Backtest:
                 if o.exit_at_t1:
                     self._exit(pos, ctx.ts, tr.entry + sm["t1_pts"] * sm["_delta"], "T1")
                     return True
+                if 0 < o.t1_book_fraction < 1:               # two or more lots: sell part at T1
+                    pos.booked = o.t1_book_fraction
+                    pos.booked_px = max(tr.entry + sm["t1_pts"] * sm["_delta"] - o.slippage, 0.05)
                 if o.lock_after_t1 is not None:
                     pos.stop_px = tr.entry + o.lock_after_t1   # one lot: stop to entry + 2, trail under the 9 EMA
             close = float(row["c"])

@@ -178,6 +178,7 @@ def default_experiments() -> list[Experiment]:
         E("fid_stop_gap_fill", "fidelity", "a stop the candle opened through fills at the open, not the stop price",
           options={"stop_fill": "open_if_worse"}),
         E("fid_slip_0", "fidelity", "slippage 0.5 -> 0 per fill", options={"slippage": 0.0}),
+        E("fid_slip_0.1", "fidelity", "slippage 0.5 -> 0.1 per fill (two ticks)", options={"slippage": 0.1}),
         E("fid_slip_0.25", "fidelity", "slippage 0.5 -> 0.25 per fill", options={"slippage": 0.25}),
         E("fid_slip_1.0", "fidelity", "slippage 0.5 -> 1.0 per fill", options={"slippage": 1.0}),
         E("fid_no_entry_credit_gate", "fidelity", "credit minimum checked at the alert only, not again at the fill",
@@ -253,6 +254,26 @@ def default_experiments() -> list[Experiment]:
           waive=["S3:India VIX not making higher", "S3:India VIX not up"]),
         E("diag_s3_chart_open_credit_12", "diagnostic", "S3: VIX checks off and credit 22 -> 12", setups=["S3"],
           waive=["S3:India VIX not making higher", "S3:India VIX not up"], rules={"min_credit": 12.0}),
+    ]
+    # position size: brokerage is flat per order, and two or more lots allow the sheet's book-half rule
+    x += [
+        E("lots_2", "exit-risk", "2 lots, one-lot exit rule (cost effect only)", options={"lots": 2}),
+        E("lots_8", "exit-risk", "8 lots, one-lot exit rule (cost effect only)", options={"lots": 8}),
+        E("lots_10", "exit-risk", "10 lots, one-lot exit rule (cost effect only)", options={"lots": 10}),
+        E("lots_8_book_half", "exit-risk", "8 lots: sell half at T1, trail the rest under the 9 EMA (the sheet's rule)",
+          options={"lots": 8, "t1_book_fraction": 0.5, "lock_after_t1": None}),
+        E("lots_8_book_half_lock2", "exit-risk", "8 lots: sell half at T1, rest with stop at entry + 2 and the trail",
+          options={"lots": 8, "t1_book_fraction": 0.5}),
+        E("lots_8_exit_at_t1", "exit-risk", "8 lots: sell everything at T1", options={"lots": 8, "exit_at_t1": True}),
+    ]
+    # scenarios: several changes at once, to size what the owner's answers imply. Not for tuning.
+    x += [
+        E("scn_lots8_slip0.25", "scenario", "8 lots and slippage 0.25", options={"lots": 8, "slippage": 0.25}),
+        E("scn_lots8_slip0.1", "scenario", "8 lots and slippage 0.1", options={"lots": 8, "slippage": 0.1}),
+        E("scn_lots8_slip0.25_book_half", "scenario", "8 lots, slippage 0.25, sell half at T1 and trail the rest",
+          options={"lots": 8, "slippage": 0.25, "t1_book_fraction": 0.5, "lock_after_t1": None}),
+        E("scn_lots8_slip0.25_exit_t1", "scenario", "8 lots, slippage 0.25, sell everything at T1",
+          options={"lots": 8, "slippage": 0.25, "exit_at_t1": True}),
     ]
     # (d) dropping setups
     x += [
@@ -356,11 +377,15 @@ def main(argv=None) -> int:
     out, cache = Path(a.out), s.data_dir / "cache"
     out.mkdir(parents=True, exist_ok=True)
     spec = Path(a.spec) if a.spec else Path("experiments") / f"sweeps_{tag}.json"
-    if a.spec or spec.exists():
+    if a.spec:
         exps = load_spec(spec)
     else:
-        exps = default_experiments()
-        save_spec(exps, spec)
+        exps = load_spec(spec) if spec.exists() else []
+        have = {e.name for e in exps}
+        added = [e for e in default_experiments() if e.name not in have]   # built-ins added since the file was written
+        if added:
+            exps += added
+            save_spec(exps, spec)
     if a.only:
         want = set(a.only.split(","))
         exps = [e for e in exps if e.name in want or e.group in want]

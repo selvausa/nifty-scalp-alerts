@@ -185,3 +185,55 @@ def test_stop_gap_fill_uses_the_open_when_the_candle_opened_through_the_stop():
         drive(bt, pos, idx, fut)
         out[mode] = bt.trades[0].exit
     assert out["stop"] == pytest.approx(91.5 - 0.5) and out["open_if_worse"] == pytest.approx(85 - 0.5)
+
+
+def test_brokerage_is_spread_over_lots():
+    from scalpbot.backtest import charges, round_trip_cost
+    one = charges([(120.0, 1.0)], [(120.0, 1.0)], 65)
+    assert one == pytest.approx(round_trip_cost([120.0], [120.0], 65)) == pytest.approx(65.69, abs=0.02)
+    eight = charges([(120.0, 1.0)], [(120.0, 1.0)], 65 * 8) / 8
+    fixed = 40 * 1.18                                              # two orders of brokerage plus GST on it
+    assert eight == pytest.approx((one - fixed) + fixed / 8)       # only the flat part is diluted
+    assert 20 < eight < 26
+
+
+def test_lots_change_charges_only(hist, base):
+    big = run_experiment(hist, Experiment("l", options={"lots": 8}), DAYS[1], DAYS[-1])
+    assert [(t.signal_time, t.reason, round(t.points, 4)) for t in big.trades] == \
+           [(t.signal_time, t.reason, round(t.points, 4)) for t in base.trades]
+    assert all(b.charges < a.charges and b.rupees > a.rupees for a, b in zip(base.trades, big.trades))
+
+
+def test_book_half_at_t1():
+    from scalpbot.backtest import charges
+    from tests.test_backtest import C, bt_, buy_position
+    prices = [(100, 103, 99, 102), (102, 114, 101, 113), (113, 116, 110, 111), (111, 112, 108, 109)]
+    fut = [(25000, 25006, 24998, 25005), (25005, 25026, 25003, 25024), (25024, 25030, 25018, 25020),
+           (25020, 25021, 25010, 25012)]
+    pos, idx = buy_position(prices)
+    bt = bt_(lots=2, t1_book_fraction=0.5, lock_after_t1=None)
+    for ts, bar in zip(idx, fut):
+        if bt._manage(pos, C(ts, *bar, ema9=25015.0), None):
+            break
+    t = bt.trades[0]
+    half_t1, rest = 100.5 + 24 * 0.5 - 0.5, 109 - 0.5              # T1 leg, then the 9 EMA trail exit
+    assert t.reason == "9 EMA trail" and t.exit == pytest.approx((half_t1 + rest) / 2)
+    assert t.points == pytest.approx((half_t1 + rest) / 2 - 100.5) and t.fills == 3
+    assert t.slippage_pts == pytest.approx(0.5 * 2)                # one buy, two half sells
+    assert t.charges == pytest.approx(charges([(100.5, 1.0)], [(half_t1, 0.5), (rest, 0.5)], 130) / 2)
+    assert t.rupees == pytest.approx(t.points * 65 - t.charges)
+
+
+def test_new_builtin_experiments_are_merged_into_an_old_spec(tmp_path, monkeypatch):
+    monkeypatch.setattr("scalpbot.backtest._time.sleep", lambda *_: None)
+    monkeypatch.setenv("DATA_DIR", str(tmp_path / "data"))
+    monkeypatch.setenv("EVENTS_FILE", str(tmp_path / "none.txt"))
+    monkeypatch.setenv("VIX_GROWW_SYMBOL", "NSE-INDIAVIX")
+    monkeypatch.chdir(tmp_path)
+    GrowwHistory(FakeG(), date(2026, 10, 5), date(2026, 10, 23), tmp_path / "data" / "cache", vix_symbol="NSE-INDIAVIX")
+    old = [e for e in default_experiments() if not e.name.startswith(("lots_", "scn_"))]
+    save_spec(old, tmp_path / "experiments" / "sweeps_2026-10_2026-10.json")
+    assert main(["2026-10-05", "2026-10-23", "--offline", "--only", "lots_8", "--jobs", "1",
+                 "--out", str(tmp_path / "docs")]) == 0
+    names = [e.name for e in load_spec(tmp_path / "experiments" / "sweeps_2026-10_2026-10.json")]
+    assert "lots_8" in names and names[: len(old)] == [e.name for e in old]
