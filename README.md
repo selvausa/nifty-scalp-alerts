@@ -39,8 +39,31 @@ cp .env.example .env        # then fill it in; never commit .env
 ```bash
 python -m scalpbot doctor               # check login, data and Telegram (run in market hours)
 python -m scalpbot replay 2026-11-13 -v # chart-side rules over a past day, printed to the console
+python -m scalpbot backtest 2026-05-01 2026-10-31   # simulate every setup over a date range
 python -m scalpbot run                  # the live loop
 ```
+
+### Backtest
+
+`backtest START END` runs all six setups over past sessions and simulates each trade
+with the sheet's exit rules on Groww's historical option prices, after charges and
+slippage. It prints win rate, average win and loss, the break-even win rate and net
+P&L per setup, and writes every trade to `data/backtest_START_END.csv`.
+
+| Option | Meaning | Default |
+| --- | --- | --- |
+| `--slippage` | Premium points lost per fill | 0.5 |
+| `--lot` | Lot size for the rupee figures | 65 |
+| `--exit-at-t1` | Book the whole position at T1 instead of trailing under the 9 EMA | off |
+| `--chart-only` | Use no option prices: buys only, premium assumed to move delta x index, no time decay | off |
+| `--chunk-days` | Days of candles per Groww request | 7 |
+
+Candles are cached in `data/cache`, so only the first run over a period is slow.
+The report lists its own limits; the main ones are that 5-minute candles cannot order
+a stop and a target inside one candle (the stop is assumed), and that Groww has no
+historical bid/ask, so the spread rules are replaced by fixed slippage. Like the rest
+of the Groww code it has not yet run against a live account: `doctor` now also checks
+that expired option contracts return candles.
 
 To keep it running on a Linux server, a systemd unit:
 
@@ -108,4 +131,4 @@ rollover-week contract switch (set `FUT_GROWW_SYMBOL` by hand), and exchange hol
 
 `scalpbot/indicators.py` indicators · `market.py` per-candle context · `setups.py` the six
 setups · `options.py` strike selection · `groww.py` data · `runner.py` live loop and
-alert text · `state.py` daily limits · `tests/` synthetic-data tests (`pytest`).
+alert text · `state.py` daily limits · `backtest.py` history loader and trade simulator · `tests/` synthetic-data tests (`pytest`).

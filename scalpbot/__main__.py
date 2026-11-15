@@ -79,6 +79,37 @@ def cmd_doctor(s: Settings, a) -> int:
         print(f"   option candles today: {len(oc)}")
 
     step("Option chain, quote and option candles", chain)
+
+    def history():
+        from .backtest import groww_symbol
+
+        p = g.api.get_expiries("NSE", "NIFTY", today.year, today.month, timeout=15)
+        past = sorted(date.fromisoformat(str(e)[:10]) for e in (p.get("expiries") or []))
+        print("   expiries this month:", [str(e) for e in past])
+        old = [e for e in past if e < today]
+        if not old:
+            prev = today.replace(day=1) - timedelta(days=1)
+            p = g.api.get_expiries("NSE", "NIFTY", prev.year, prev.month, timeout=15)
+            old = sorted(date.fromisoformat(str(e)[:10]) for e in (p.get("expiries") or []))
+        if not old:
+            raise RuntimeError("no past expiry returned")
+        exp = old[-1]
+        c = g.api.get_contracts("NSE", "NIFTY", exp.isoformat(), timeout=20)
+        lst = [str(x) for x in (c.get("contracts") or [])]
+        print(f"   expired {exp}: {len(lst)} contracts, e.g. {lst[:2]}")
+        strike = int(round((g.spot() or 25000) / 100) * 100)
+        sym = groww_symbol(exp, strike, "CE")
+        if lst and sym not in lst:
+            print(f"   NOTE: built symbol {sym} is not in Groww's list; the backtest will match by strike instead")
+            sym = next((x for x in lst if x.endswith(f"-{strike}-CE")), sym)
+        from .groww import parse_candles
+        df = parse_candles(g.api.get_historical_candles("NSE", "FNO", sym, f"{exp} 09:00:00", f"{exp} 15:45:00",
+                                                        "5minute", timeout=20))
+        print(f"   {sym}: {len(df)} candles on its expiry day")
+        if df.empty:
+            raise RuntimeError("no candles for an expired option; backtest would need --chart-only")
+
+    step("History for backtests (expired option contracts)", history)
     tg = Telegram(s.telegram_token, s.telegram_chat_id)
     if tg.enabled:
         step("Telegram", lambda: print("   sent" if tg.send("✅ Scalp alert bot: Telegram test") else "   send failed"))
@@ -120,6 +151,31 @@ def cmd_replay(s: Settings, a) -> int:
     return 0
 
 
+def cmd_backtest(s: Settings, a) -> int:
+    """Runs every setup over a date range and simulates the trades on historical prices."""
+    from .backtest import Backtest, GrowwHistory, Options, report, write_trades
+
+    start, end = date.fromisoformat(a.start), date.fromisoformat(a.end)
+    if end < start or end >= ist_now().date():
+        print("END must be a past date on or after START")
+        return 2
+    g = Groww(s)
+    g.connect(ist_now().date())
+    print(f"Loading history {start} to {end} (cached in {s.data_dir / 'cache'}; the first run is slow)...")
+    hist = GrowwHistory(g, start, end, s.data_dir / "cache", chunk_days=a.chunk_days, vix_symbol=s.vix_groww_symbol)
+    bt = Backtest(hist, s.rules, Options(slippage=a.slippage, lot=a.lot, exit_at_t1=a.exit_at_t1,
+                                         use_options=not a.chart_only, capital=s.capital, risk_pct=s.risk_pct),
+                  load_events(s.events_file))
+    bt.run(start, end)
+    print(report(bt, start, end))
+    out = s.data_dir / f"backtest_{start}_{end}.csv"
+    write_trades(bt.trades, out)
+    print(f"\nTrades written to {out} · Groww requests this run: {hist.calls} ({hist.failed} failed)")
+    if hist.failed:
+        print("Failed requests mean missing candles (often expired option contracts); those alerts were not traded.")
+    return 0
+
+
 def _plain(t: str) -> str:
     import re
 
@@ -135,10 +191,19 @@ def main() -> int:
     r.add_argument("date", help="YYYY-MM-DD")
     r.add_argument("--dte", type=int, help="days to expiry to assume (default 3)")
     r.add_argument("-v", "--verbose", action="store_true", help="also print why setups were rejected")
+    b = sub.add_parser("backtest", help="simulate every setup over a past date range")
+    b.add_argument("start", help="YYYY-MM-DD")
+    b.add_argument("end", help="YYYY-MM-DD (a past date)")
+    b.add_argument("--slippage", type=float, default=0.5, help="premium points lost per fill (default 0.5)")
+    b.add_argument("--lot", type=int, default=65, help="lot size for rupee figures (default 65)")
+    b.add_argument("--exit-at-t1", action="store_true", help="book the whole position at T1 instead of trailing")
+    b.add_argument("--chart-only", action="store_true",
+                   help="no option prices: buys only, premium assumed to move delta x index")
+    b.add_argument("--chunk-days", type=int, default=7, help="days of candles per Groww request (default 7)")
     a = p.parse_args()
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
     s = Settings.from_env()
-    return {"run": cmd_run, "doctor": cmd_doctor, "replay": cmd_replay}[a.cmd](s, a)
+    return {"run": cmd_run, "doctor": cmd_doctor, "replay": cmd_replay, "backtest": cmd_backtest}[a.cmd](s, a)
 
 
 if __name__ == "__main__":

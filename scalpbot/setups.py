@@ -40,6 +40,7 @@ class Signal:
     lines: list[str] = field(default_factory=list)
     notes: list[str] = field(default_factory=list)
     data: dict = field(default_factory=dict)
+    sim: dict = field(default_factory=dict)     # what the backtest needs to simulate the trade
 
 
 @dataclass
@@ -222,7 +223,8 @@ class Engine:
             notes.append(f"VIX {ctx.vix:.1f} above 18 and rising: half size")
         if expiry_day:
             notes.append("Expiry day: ITM strike, half size, flat by 14:45")
-        return Signal(setup, title, side, f"{setup}:{d}", cs, lines, notes, data)
+        sim = {"kind": "buy", "d": d, "inval": inval, "S": S, "t1_pts": t1, "leg": leg, "expiry_day": expiry_day}
+        return Signal(setup, title, side, f"{setup}:{d}", cs, lines, notes, data, sim)
 
     # --------------------------------------------------------------------- B1
     def _b1(self, ctx: Ctx, opt):
@@ -334,8 +336,11 @@ class Engine:
                   "no bid/ask" if worst is None else f"widest ₹{worst:.2f}"),
         ], (spreads, credit)
 
-    def _sell_signal(self, ctx, setup, title, side, key, cs, picked, index_stop, cost, half, notes=None) -> Signal:
+    def _sell_signal(self, ctx, setup, title, side, key, cs, picked, index_stop, cost, half, notes=None,
+                     stop=None) -> Signal:
         lines, data = [], {}
+        sim = {"kind": "sell", "spreads": picked[0] if picked else None, "credit": picked[1] if picked else None,
+               "stop": stop, "expiry_day": ctx.dte <= 0}
         if picked:
             spreads, credit = picked
             lot = self.sz.lot_size
@@ -352,7 +357,7 @@ class Engine:
             lines.append("Size: half")
         lines.append(f"Index stop: {index_stop}")
         lines.append("Exit the shorts first · flat by 15:00 · check broker margin before entry")
-        return Signal(setup, title, side, key, cs, lines, notes or [], data)
+        return Signal(setup, title, side, key, cs, lines, notes or [], data, sim)
 
     # --------------------------------------------------------------------- S1
     def _s1(self, ctx: Ctx, opt):
@@ -393,7 +398,8 @@ class Engine:
         yield self._sell_signal(
             ctx, "S1", "Range iron condor", "IRON CONDOR", "S1:0", cs, picked,
             f"close the threatened side on a 5-min close {0.5 * float(row['atr']):.0f} pts (0.5 ATR) outside "
-            f"{_f(lo)}-{_f(hi)} (fut), or if that short leg doubles", self.r.condor_cost, half, notes)
+            f"{_f(lo)}-{_f(hi)} (fut), or if that short leg doubles", self.r.condor_cost, half, notes,
+            stop=("range", lo, hi, 0.5 * float(row["atr"])))
 
     # --------------------------------------------------------------------- S2
     def _s2(self, ctx: Ctx, opt):
@@ -430,7 +436,7 @@ class Engine:
         side = "BULL PUT SPREAD" if d > 0 else "BEAR CALL SPREAD"
         yield self._sell_signal(ctx, "S2", "Trend-side credit spread", side, f"S2:{d}", cs, picked,
                                 f"5-min futures close {'below' if d > 0 else 'above'} VWAP ({_f(float(row['vwap']))})",
-                                self.r.spread_cost, ctx.dte <= 0)
+                                self.r.spread_cost, ctx.dte <= 0, stop=("vwap", d))
 
     # --------------------------------------------------------------------- S3
     def _s3(self, ctx: Ctx, opt):
@@ -466,4 +472,5 @@ class Engine:
         side = "BEAR CALL SPREAD" if up else "BULL PUT SPREAD"
         yield self._sell_signal(ctx, "S3", "Exhaustion fade spread", side, f"S3:{1 if up else -1}", cs, picked,
                                 f"5-min close beyond the day extreme {_f(ext)} (fut)", self.r.spread_cost, True,
-                                ["Half size: max loss per lot is large at a small credit"])
+                                ["Half size: max loss per lot is large at a small credit"],
+                                stop=("extreme", ext, 1 if up else -1))
