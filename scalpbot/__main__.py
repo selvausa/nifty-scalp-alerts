@@ -146,6 +146,11 @@ def cmd_replay(s: Settings, a) -> int:
     eng = Engine(s.rules, Sizing(s.capital, s.risk_pct, g.lot_size))
     dte = a.dte if a.dte is not None else 3
     n, st = 0, DayState(day=day.isoformat())      # same de-duplication as the live bot
+    if not (df.index.normalize() == pd.Timestamp(day)).any():
+        last = df.index[-1].date() if len(df) else "none"
+        print(f"Groww returned no candles for {day} (latest session it has: {last}). "
+              "Either a market holiday, or Groww's history is not available for that day yet.")
+        return 1
     for ts in df.index[df.index.normalize() == pd.Timestamp(day)]:
         ctx = build_context(df, ts, vix, dte, events, vix_fall_pct=s.rules.vix_fall_sharp_pct)
         if ctx is None:

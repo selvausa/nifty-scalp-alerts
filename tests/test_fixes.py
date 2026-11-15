@@ -281,3 +281,18 @@ def test_session_includes_candles_to_1540():
     idx = pd.date_range("2026-11-11 15:20", periods=8, freq="5min")          # 15:20 .. 15:55
     df = pd.DataFrame({"o": 1.0, "h": 1.0, "l": 1.0, "c": 1.0, "v": 1.0}, index=idx)
     assert list(session_only(df).index.strftime("%H:%M")) == ["15:20", "15:25", "15:30", "15:35", "15:40"]
+
+
+def test_bad_candles_are_repaired():
+    from scalpbot.groww import parse_candles
+    df = parse_candles({"candles": [
+        ["2026-11-08T13:45:00", 25000, 25010, 0, 25005, 10],        # zero low, as Groww returned on 8 Nov
+        ["2026-11-08T13:50:00", 25005, 0, 24990, 24995, 10],        # zero high
+        ["2026-11-08T13:55:00", 0, 0, 0, 0, 0],                     # nothing usable
+        ["2026-11-08T14:00:00", 24995, 25020, 24980, 25010, 10],    # fine: untouched
+    ]})
+    assert len(df) == 3
+    assert df["l"].iloc[0] == 25000 and df["h"].iloc[1] == 25005
+    assert tuple(df.iloc[2][["o", "h", "l", "c"]]) == (24995, 25020, 24980, 25010)
+    from scalpbot.indicators import atr
+    assert atr(pd.concat([df] * 6).set_axis(pd.date_range("2026-11-08 09:15", periods=18, freq="5min"))).iloc[-1] < 100

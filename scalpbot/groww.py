@@ -62,7 +62,24 @@ def parse_candles(payload: dict) -> pd.DataFrame:
         idx.append(pd.Timestamp(ts))
         data.append([_num(c[1]), _num(c[2]), _num(c[3]), _num(c[4]), _num(c[5]) if len(c) > 5 else 0.0])
     df = pd.DataFrame(data, index=pd.DatetimeIndex(idx), columns=["o", "h", "l", "c", "v"])
-    return df[~df.index.duplicated(keep="last")].sort_index()
+    df = df[~df.index.duplicated(keep="last")].sort_index()
+    return clean_candles(df)
+
+
+def clean_candles(df: pd.DataFrame) -> pd.DataFrame:
+    """Groww sometimes returns a candle with a zero low (or high). One such candle wrecks
+    ATR and the prior-day low, so: drop candles with no usable open or close, and pull a
+    high or low that is missing or inside the body back to the body's edge."""
+    if df.empty:
+        return df
+    df = df[(df["o"] > 0) & (df["c"] > 0)].copy()
+    top, bottom = df[["o", "c"]].max(axis=1), df[["o", "c"]].min(axis=1)
+    bad = (df["h"] < top) | (df["l"] > bottom) | (df["l"] <= 0)
+    if bad.any():
+        log.warning("Repaired %d candle(s) with a bad high or low, e.g. %s", int(bad.sum()), df.index[bad][0])
+    df["h"] = df["h"].where(df["h"] >= top, top)
+    df["l"] = df["l"].where((df["l"] > 0) & (df["l"] <= bottom), bottom)
+    return df
 
 
 def parse_chain(payload: dict, expiry: str) -> Chain:
