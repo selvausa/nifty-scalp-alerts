@@ -873,5 +873,148 @@
    "S3"
   ],
   "sell_delta": {}
+ },
+ {
+  "name": "fid_slip_0.1",
+  "group": "fidelity",
+  "change": "slippage 0.5 -> 0.1 per fill (two ticks)",
+  "rules": {},
+  "options": {
+   "slippage": 0.1
+  },
+  "waive": [],
+  "setups": null,
+  "sell_delta": {}
+ },
+ {
+  "name": "lots_2",
+  "group": "exit-risk",
+  "change": "2 lots, one-lot exit rule (cost effect only)",
+  "rules": {},
+  "options": {
+   "lots": 2
+  },
+  "waive": [],
+  "setups": null,
+  "sell_delta": {}
+ },
+ {
+  "name": "lots_8",
+  "group": "exit-risk",
+  "change": "8 lots, one-lot exit rule (cost effect only)",
+  "rules": {},
+  "options": {
+   "lots": 8
+  },
+  "waive": [],
+  "setups": null,
+  "sell_delta": {}
+ },
+ {
+  "name": "lots_10",
+  "group": "exit-risk",
+  "change": "10 lots, one-lot exit rule (cost effect only)",
+  "rules": {},
+  "options": {
+   "lots": 10
+  },
+  "waive": [],
+  "setups": null,
+  "sell_delta": {}
+ },
+ {
+  "name": "lots_8_book_half",
+  "group": "exit-risk",
+  "change": "8 lots: sell half at T1, trail the rest under the 9 EMA (the sheet's rule)",
+  "rules": {},
+  "options": {
+   "lots": 8,
+   "t1_book_fraction": 0.5,
+   "lock_after_t1": null
+  },
+  "waive": [],
+  "setups": null,
+  "sell_delta": {}
+ },
+ {
+  "name": "lots_8_book_half_lock2",
+  "group": "exit-risk",
+  "change": "8 lots: sell half at T1, rest with stop at entry + 2 and the trail",
+  "rules": {},
+  "options": {
+   "lots": 8,
+   "t1_book_fraction": 0.5
+  },
+  "waive": [],
+  "setups": null,
+  "sell_delta": {}
+ },
+ {
+  "name": "lots_8_exit_at_t1",
+  "group": "exit-risk",
+  "change": "8 lots: sell everything at T1",
+  "rules": {},
+  "options": {
+   "lots": 8,
+   "exit_at_t1": true
+  },
+  "waive": [],
+  "setups": null,
+  "sell_delta": {}
+ },
+ {
+  "name": "scn_lots8_slip0.25",
+  "group": "scenario",
+  "change": "8 lots and slippage 0.25",
+  "rules": {},
+  "options": {
+   "lots": 8,
+   "slippage": 0.25
+  },
+  "waive": [],
+  "setups": null,
+  "sell_delta": {}
+ },
+ {
+  "name": "scn_lots8_slip0.1",
+  "group": "scenario",
+  "change": "8 lots and slippage 0.1",
+  "rules": {},
+  "options": {
+   "lots": 8,
+   "slippage": 0.1
+  },
+  "waive": [],
+  "setups": null,
+  "sell_delta": {}
+ },
+ {
+  "name": "scn_lots8_slip0.25_book_half",
+  "group": "scenario",
+  "change": "8 lots, slippage 0.25, sell half at T1 and trail the rest",
+  "rules": {},
+  "options": {
+   "lots": 8,
+   "slippage": 0.25,
+   "t1_book_fraction": 0.5,
+   "lock_after_t1": null
+  },
+  "waive": [],
+  "setups": null,
+  "sell_delta": {}
+ },
+ {
+  "name": "scn_lots8_slip0.25_exit_t1",
+  "group": "scenario",
+  "change": "8 lots, slippage 0.25, sell everything at T1",
+  "rules": {},
+  "options": {
+   "lots": 8,
+   "slippage": 0.25,
+   "exit_at_t1": true
+  },
+  "waive": [],
+  "setups": null,
+  "sell_delta": {}
  }
 ]

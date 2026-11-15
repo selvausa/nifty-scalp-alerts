@@ -1,0 +1,7 @@
+setup,pattern_candles,episodes,pattern_days,near_miss_candles,near_miss_episodes,passed_all_checks,passed_episodes,alerts,trades,atr_median,atr_over_20_pct,avg_failed_checks
+B1,2499,258,115,195,135,11,11,10,10,23.3,65.0,3.11
+B2,112,112,112,0,0,1,1,1,0,28.2,90.0,3.46
+B3,116,65,55,44,34,1,1,1,1,22.0,60.0,1.92
+S1,237,19,19,42,10,0,0,0,0,24.4,78.0,2.56
+S2,1673,168,109,1267,147,84,55,42,15,21.3,58.0,1.22
+S3,495,39,27,195,75,0,0,0,0,27.7,83.0,2.03

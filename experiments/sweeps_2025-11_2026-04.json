@@ -1,0 +1,1020 @@
+[
+ {
+  "name": "baseline",
+  "group": "baseline",
+  "change": "the cheat sheet's rules as coded",
+  "rules": {},
+  "options": {},
+  "waive": [],
+  "setups": null,
+  "sell_delta": {}
+ },
+ {
+  "name": "fid_target_first",
+  "group": "fidelity",
+  "change": "same-candle stop and target: target first (optimistic bound)",
+  "rules": {},
+  "options": {
+   "same_candle": "target_first"
+  },
+  "waive": [],
+  "setups": null,
+  "sell_delta": {}
+ },
+ {
+  "name": "fid_stop_gap_fill",
+  "group": "fidelity",
+  "change": "a stop the candle opened through fills at the open, not the stop price",
+  "rules": {},
+  "options": {
+   "stop_fill": "open_if_worse"
+  },
+  "waive": [],
+  "setups": null,
+  "sell_delta": {}
+ },
+ {
+  "name": "fid_slip_0",
+  "group": "fidelity",
+  "change": "slippage 0.5 -> 0 per fill",
+  "rules": {},
+  "options": {
+   "slippage": 0.0
+  },
+  "waive": [],
+  "setups": null,
+  "sell_delta": {}
+ },
+ {
+  "name": "fid_slip_0.1",
+  "group": "fidelity",
+  "change": "slippage 0.5 -> 0.1 per fill (two ticks)",
+  "rules": {},
+  "options": {
+   "slippage": 0.1
+  },
+  "waive": [],
+  "setups": null,
+  "sell_delta": {}
+ },
+ {
+  "name": "fid_slip_0.25",
+  "group": "fidelity",
+  "change": "slippage 0.5 -> 0.25 per fill",
+  "rules": {},
+  "options": {
+   "slippage": 0.25
+  },
+  "waive": [],
+  "setups": null,
+  "sell_delta": {}
+ },
+ {
+  "name": "fid_slip_1.0",
+  "group": "fidelity",
+  "change": "slippage 0.5 -> 1.0 per fill",
+  "rules": {},
+  "options": {
+   "slippage": 1.0
+  },
+  "waive": [],
+  "setups": null,
+  "sell_delta": {}
+ },
+ {
+  "name": "fid_no_entry_credit_gate",
+  "group": "fidelity",
+  "change": "credit minimum checked at the alert only, not again at the fill",
+  "rules": {},
+  "options": {
+   "entry_credit_min": 0.0
+  },
+  "waive": [],
+  "setups": null,
+  "sell_delta": {}
+ },
+ {
+  "name": "fid_entry_gap_off",
+  "group": "fidelity",
+  "change": "do not skip buys when the index moved over 3 points before the fill",
+  "rules": {},
+  "options": {
+   "entry_max_gap": 1000000000.0
+  },
+  "waive": [],
+  "setups": null,
+  "sell_delta": {}
+ },
+ {
+  "name": "exit_at_t1",
+  "group": "exit-risk",
+  "change": "buys: book everything at T1 instead of stop to entry+2 and trail",
+  "rules": {},
+  "options": {
+   "exit_at_t1": true
+  },
+  "waive": [],
+  "setups": null,
+  "sell_delta": {}
+ },
+ {
+  "name": "exit_no_lock",
+  "group": "exit-risk",
+  "change": "buys: after T1 keep the original stop, trail under the 9 EMA",
+  "rules": {},
+  "options": {
+   "lock_after_t1": null
+  },
+  "waive": [],
+  "setups": null,
+  "sell_delta": {}
+ },
+ {
+  "name": "exit_lock_be",
+  "group": "exit-risk",
+  "change": "buys: after T1 stop to entry + 0 (break-even before costs)",
+  "rules": {},
+  "options": {
+   "lock_after_t1": 0.0
+  },
+  "waive": [],
+  "setups": null,
+  "sell_delta": {}
+ },
+ {
+  "name": "exit_lock_half_t1",
+  "group": "exit-risk",
+  "change": "buys: after T1 stop to entry + 6",
+  "rules": {},
+  "options": {
+   "lock_after_t1": 6.0
+  },
+  "waive": [],
+  "setups": null,
+  "sell_delta": {}
+ },
+ {
+  "name": "exit_no_time_stop",
+  "group": "exit-risk",
+  "change": "buys: time stop off",
+  "rules": {},
+  "options": {
+   "time_stop_bars": 0
+  },
+  "waive": [],
+  "setups": null,
+  "sell_delta": {}
+ },
+ {
+  "name": "exit_time_stop_6",
+  "group": "exit-risk",
+  "change": "buys: time stop after 6 candles instead of 3",
+  "rules": {},
+  "options": {
+   "time_stop_bars": 6
+  },
+  "waive": [],
+  "setups": null,
+  "sell_delta": {}
+ },
+ {
+  "name": "exit_stop_1.0",
+  "group": "exit-risk",
+  "change": "buys: disaster stop 1.5 -> 1.0 x S x delta",
+  "rules": {},
+  "options": {
+   "stop_mult": 1.0
+  },
+  "waive": [],
+  "setups": null,
+  "sell_delta": {}
+ },
+ {
+  "name": "exit_stop_2.0",
+  "group": "exit-risk",
+  "change": "buys: disaster stop 1.5 -> 2.0 x S x delta",
+  "rules": {},
+  "options": {
+   "stop_mult": 2.0
+  },
+  "waive": [],
+  "setups": null,
+  "sell_delta": {}
+ },
+ {
+  "name": "exit_no_index_stop",
+  "group": "exit-risk",
+  "change": "spreads: no index stop (credit stop, target and flat-by only)",
+  "rules": {},
+  "options": {
+   "index_stop": false
+  },
+  "waive": [],
+  "setups": null,
+  "sell_delta": {}
+ },
+ {
+  "name": "exit_credit_target_0.3",
+  "group": "exit-risk",
+  "change": "spreads: target 50% -> 30% of credit",
+  "rules": {},
+  "options": {
+   "credit_target": 0.3
+  },
+  "waive": [],
+  "setups": null,
+  "sell_delta": {}
+ },
+ {
+  "name": "exit_credit_target_0.7",
+  "group": "exit-risk",
+  "change": "spreads: target 50% -> 70% of credit",
+  "rules": {},
+  "options": {
+   "credit_target": 0.7
+  },
+  "waive": [],
+  "setups": null,
+  "sell_delta": {}
+ },
+ {
+  "name": "exit_credit_stop_2.0",
+  "group": "exit-risk",
+  "change": "spreads: stop 1.5x -> 2.0x credit",
+  "rules": {},
+  "options": {
+   "credit_stop": 2.0
+  },
+  "waive": [],
+  "setups": null,
+  "sell_delta": {}
+ },
+ {
+  "name": "entry_s_max_25",
+  "group": "entry-filter",
+  "change": "stop size cap s_max 20 -> 25",
+  "rules": {
+   "s_max": 25.0
+  },
+  "options": {},
+  "waive": [],
+  "setups": null,
+  "sell_delta": {}
+ },
+ {
+  "name": "entry_s_max_30",
+  "group": "entry-filter",
+  "change": "stop size cap s_max 20 -> 30",
+  "rules": {
+   "s_max": 30.0
+  },
+  "options": {},
+  "waive": [],
+  "setups": null,
+  "sell_delta": {}
+ },
+ {
+  "name": "entry_s_max_40",
+  "group": "entry-filter",
+  "change": "stop size cap s_max 20 -> 40",
+  "rules": {
+   "s_max": 40.0
+  },
+  "options": {},
+  "waive": [],
+  "setups": null,
+  "sell_delta": {}
+ },
+ {
+  "name": "entry_s_min_5",
+  "group": "entry-filter",
+  "change": "stop size floor s_min 10 -> 5",
+  "rules": {
+   "s_min": 5.0
+  },
+  "options": {},
+  "waive": [],
+  "setups": null,
+  "sell_delta": {}
+ },
+ {
+  "name": "entry_min_credit_18",
+  "group": "entry-filter",
+  "change": "minimum credit 22 -> 18 (alert and fill)",
+  "rules": {
+   "min_credit": 18.0,
+   "min_credit_condor": 36.0
+  },
+  "options": {},
+  "waive": [],
+  "setups": null,
+  "sell_delta": {}
+ },
+ {
+  "name": "entry_min_credit_15",
+  "group": "entry-filter",
+  "change": "minimum credit 22 -> 15 (alert and fill)",
+  "rules": {
+   "min_credit": 15.0,
+   "min_credit_condor": 30.0
+  },
+  "options": {},
+  "waive": [],
+  "setups": null,
+  "sell_delta": {}
+ },
+ {
+  "name": "entry_min_credit_12",
+  "group": "entry-filter",
+  "change": "minimum credit 22 -> 12 (alert and fill)",
+  "rules": {
+   "min_credit": 12.0,
+   "min_credit_condor": 24.0
+  },
+  "options": {},
+  "waive": [],
+  "setups": null,
+  "sell_delta": {}
+ },
+ {
+  "name": "entry_s2_delta_0.20_0.35",
+  "group": "entry-filter",
+  "change": "S2 short-strike delta 0.15-0.30 -> 0.20-0.35",
+  "rules": {},
+  "options": {},
+  "waive": [],
+  "setups": null,
+  "sell_delta": {
+   "S2": [
+    0.2,
+    0.35
+   ]
+  }
+ },
+ {
+  "name": "entry_s2_delta_0.25_0.40",
+  "group": "entry-filter",
+  "change": "S2 short-strike delta 0.15-0.30 -> 0.25-0.40",
+  "rules": {},
+  "options": {},
+  "waive": [],
+  "setups": null,
+  "sell_delta": {
+   "S2": [
+    0.25,
+    0.4
+   ]
+  }
+ },
+ {
+  "name": "entry_adx_15",
+  "group": "entry-filter",
+  "change": "ADX trend threshold 20 -> 15",
+  "rules": {
+   "adx_trend": 15.0
+  },
+  "options": {},
+  "waive": [],
+  "setups": null,
+  "sell_delta": {}
+ },
+ {
+  "name": "entry_adx_25",
+  "group": "entry-filter",
+  "change": "ADX trend threshold 20 -> 25",
+  "rules": {
+   "adx_trend": 25.0
+  },
+  "options": {},
+  "waive": [],
+  "setups": null,
+  "sell_delta": {}
+ },
+ {
+  "name": "entry_vix_up_8",
+  "group": "entry-filter",
+  "change": "no selling when VIX is up more than 5% -> 8%",
+  "rules": {
+   "vix_up_block_pct": 8.0
+  },
+  "options": {},
+  "waive": [],
+  "setups": null,
+  "sell_delta": {}
+ },
+ {
+  "name": "entry_or_width_0.6",
+  "group": "entry-filter",
+  "change": "B2 opening range at most 0.4 -> 0.6 x expected move",
+  "rules": {
+   "or_width_em_max": 0.6
+  },
+  "options": {},
+  "waive": [],
+  "setups": null,
+  "sell_delta": {}
+ },
+ {
+  "name": "entry_b3_vol_1.2",
+  "group": "entry-filter",
+  "change": "B3 break volume 1.5 -> 1.2 x the prior-10 average",
+  "rules": {
+   "b3_vol_mult": 1.2
+  },
+  "options": {},
+  "waive": [],
+  "setups": null,
+  "sell_delta": {}
+ },
+ {
+  "name": "entry_s1_or_atr_2",
+  "group": "entry-filter",
+  "change": "S1 opening range at least 4 -> 2 x ATR",
+  "rules": {
+   "or_width_atr_min": 2.0
+  },
+  "options": {},
+  "waive": [],
+  "setups": null,
+  "sell_delta": {}
+ },
+ {
+  "name": "entry_cooldown_15",
+  "group": "entry-filter",
+  "change": "alert cooldown 30 -> 15 minutes",
+  "rules": {
+   "cooldown_min": 15
+  },
+  "options": {},
+  "waive": [],
+  "setups": null,
+  "sell_delta": {}
+ },
+ {
+  "name": "waive_B1_volume_at_least_the_prior_ca",
+  "group": "entry-filter",
+  "change": "B1: drop the check 'Volume at least the prior candle's'",
+  "rules": {},
+  "options": {},
+  "waive": [
+   "B1:Volume at least the prior candle's"
+  ],
+  "setups": null,
+  "sell_delta": {}
+ },
+ {
+  "name": "waive_B1_no_pdh_pdl_or_100_strike_ins",
+  "group": "entry-filter",
+  "change": "B1: drop the check 'No PDH/PDL or 100-strike inside T1'",
+  "rules": {},
+  "options": {},
+  "waive": [
+   "B1:No PDH/PDL or 100-strike inside T1"
+  ],
+  "setups": null,
+  "sell_delta": {}
+ },
+ {
+  "name": "waive_B1_adx_14__is_20_or_more",
+  "group": "entry-filter",
+  "change": "B1: drop the check 'ADX(14) is 20 or more'",
+  "rules": {},
+  "options": {},
+  "waive": [
+   "B1:ADX(14) is 20 or more"
+  ],
+  "setups": null,
+  "sell_delta": {}
+ },
+ {
+  "name": "waive_B1_day_range_under_100",
+  "group": "entry-filter",
+  "change": "B1: drop the check 'Day range under 100%'",
+  "rules": {},
+  "options": {},
+  "waive": [
+   "B1:Day range under 100%"
+  ],
+  "setups": null,
+  "sell_delta": {}
+ },
+ {
+  "name": "waive_B2_break_volume_at_least_the_op",
+  "group": "entry-filter",
+  "change": "B2: drop the check 'Break volume at least the opening-range average'",
+  "rules": {},
+  "options": {},
+  "waive": [
+   "B2:Break volume at least the opening-range average"
+  ],
+  "setups": null,
+  "sell_delta": {}
+ },
+ {
+  "name": "waive_B2_no_pdh_pdl_or_100_strike_ins",
+  "group": "entry-filter",
+  "change": "B2: drop the check 'No PDH/PDL or 100-strike inside T1'",
+  "rules": {},
+  "options": {},
+  "waive": [
+   "B2:No PDH/PDL or 100-strike inside T1"
+  ],
+  "setups": null,
+  "sell_delta": {}
+ },
+ {
+  "name": "waive_B2_range_width_at_most_0_4",
+  "group": "entry-filter",
+  "change": "B2: drop the check 'Range width at most 0.4'",
+  "rules": {},
+  "options": {},
+  "waive": [
+   "B2:Range width at most 0.4"
+  ],
+  "setups": null,
+  "sell_delta": {}
+ },
+ {
+  "name": "waive_B2_option_5_min_close_above",
+  "group": "entry-filter",
+  "change": "B2: drop the check 'Option 5-min close above'",
+  "rules": {},
+  "options": {},
+  "waive": [
+   "B2:Option 5-min close above"
+  ],
+  "setups": null,
+  "sell_delta": {}
+ },
+ {
+  "name": "waive_B3_break_volume_at_least_1_5",
+  "group": "entry-filter",
+  "change": "B3: drop the check 'Break volume at least 1.5'",
+  "rules": {},
+  "options": {},
+  "waive": [
+   "B3:Break volume at least 1.5"
+  ],
+  "setups": null,
+  "sell_delta": {}
+ },
+ {
+  "name": "waive_B3_close_outside_the_band",
+  "group": "entry-filter",
+  "change": "B3: drop the check 'Close outside the band'",
+  "rules": {},
+  "options": {},
+  "waive": [
+   "B3:Close outside the band"
+  ],
+  "setups": null,
+  "sell_delta": {}
+ },
+ {
+  "name": "waive_B3_option_5_min_close_above",
+  "group": "entry-filter",
+  "change": "B3: drop the check 'Option 5-min close above'",
+  "rules": {},
+  "options": {},
+  "waive": [
+   "B3:Option 5-min close above"
+  ],
+  "setups": null,
+  "sell_delta": {}
+ },
+ {
+  "name": "waive_S1_adx_14__below_20",
+  "group": "entry-filter",
+  "change": "S1: drop the check 'ADX(14) below 20'",
+  "rules": {},
+  "options": {},
+  "waive": [
+   "S1:ADX(14) below 20"
+  ],
+  "setups": null,
+  "sell_delta": {}
+ },
+ {
+  "name": "waive_S1_opening_range_at_least_4",
+  "group": "entry-filter",
+  "change": "S1: drop the check 'Opening range at least 4'",
+  "rules": {},
+  "options": {},
+  "waive": [
+   "S1:Opening range at least 4"
+  ],
+  "setups": null,
+  "sell_delta": {}
+ },
+ {
+  "name": "waive_S1_no_gap_open",
+  "group": "entry-filter",
+  "change": "S1: drop the check 'No gap open'",
+  "rules": {},
+  "options": {},
+  "waive": [
+   "S1:No gap open"
+  ],
+  "setups": null,
+  "sell_delta": {}
+ },
+ {
+  "name": "waive_S1_no_squeeze",
+  "group": "entry-filter",
+  "change": "S1: drop the check 'No squeeze'",
+  "rules": {},
+  "options": {},
+  "waive": [
+   "S1:No squeeze"
+  ],
+  "setups": null,
+  "sell_delta": {}
+ },
+ {
+  "name": "waive_S2_day_range_under_100",
+  "group": "entry-filter",
+  "change": "S2: drop the check 'Day range under 100%'",
+  "rules": {},
+  "options": {},
+  "waive": [
+   "S2:Day range under 100%"
+  ],
+  "setups": null,
+  "sell_delta": {}
+ },
+ {
+  "name": "waive_S2_india_vix_not_up",
+  "group": "entry-filter",
+  "change": "S2: drop the check 'India VIX not up'",
+  "rules": {},
+  "options": {},
+  "waive": [
+   "S2:India VIX not up"
+  ],
+  "setups": null,
+  "sell_delta": {}
+ },
+ {
+  "name": "waive_S2_not_expiry_day_after_12_00",
+  "group": "entry-filter",
+  "change": "S2: drop the check 'Not expiry day after 12:00'",
+  "rules": {},
+  "options": {},
+  "waive": [
+   "S2:Not expiry day after 12:00"
+  ],
+  "setups": null,
+  "sell_delta": {}
+ },
+ {
+  "name": "waive_S2_adx_14__is_20_or_more",
+  "group": "entry-filter",
+  "change": "S2: drop the check 'ADX(14) is 20 or more'",
+  "rules": {},
+  "options": {},
+  "waive": [
+   "S2:ADX(14) is 20 or more"
+  ],
+  "setups": null,
+  "sell_delta": {}
+ },
+ {
+  "name": "waive_S2_short_strike_at_least_2_x_at",
+  "group": "entry-filter",
+  "change": "S2: drop the check 'Short strike at least 2 x ATR'",
+  "rules": {},
+  "options": {},
+  "waive": [
+   "S2:Short strike at least 2 x ATR"
+  ],
+  "setups": null,
+  "sell_delta": {}
+ },
+ {
+  "name": "waive_S3_india_vix_not_making_higher",
+  "group": "entry-filter",
+  "change": "S3: drop the check 'India VIX not making higher'",
+  "rules": {},
+  "options": {},
+  "waive": [
+   "S3:India VIX not making higher"
+  ],
+  "setups": null,
+  "sell_delta": {}
+ },
+ {
+  "name": "waive_S3_india_vix_not_up",
+  "group": "entry-filter",
+  "change": "S3: drop the check 'India VIX not up'",
+  "rules": {},
+  "options": {},
+  "waive": [
+   "S3:India VIX not up"
+  ],
+  "setups": null,
+  "sell_delta": {}
+ },
+ {
+  "name": "waive_S3_last_15_min_candle",
+  "group": "entry-filter",
+  "change": "S3: drop the check 'Last 15-min candle'",
+  "rules": {},
+  "options": {},
+  "waive": [
+   "S3:Last 15-min candle"
+  ],
+  "setups": null,
+  "sell_delta": {}
+ },
+ {
+  "name": "waive_S3_day_extreme_not_exceeded",
+  "group": "entry-filter",
+  "change": "S3: drop the check 'Day extreme not exceeded'",
+  "rules": {},
+  "options": {},
+  "waive": [
+   "S3:Day extreme not exceeded"
+  ],
+  "setups": null,
+  "sell_delta": {}
+ },
+ {
+  "name": "waive_S3_not_closing_beyond",
+  "group": "entry-filter",
+  "change": "S3: drop the check 'Not closing beyond'",
+  "rules": {},
+  "options": {},
+  "waive": [
+   "S3:Not closing beyond"
+  ],
+  "setups": null,
+  "sell_delta": {}
+ },
+ {
+  "name": "diag_s1_chart_checks_off",
+  "group": "diagnostic",
+  "change": "S1: waive ADX, range width, gap and squeeze (chart side fully open)",
+  "rules": {},
+  "options": {},
+  "waive": [
+   "S1:ADX(14) below 20",
+   "S1:Opening range at least 4",
+   "S1:No gap open",
+   "S1:No squeeze"
+  ],
+  "setups": [
+   "S1"
+  ],
+  "sell_delta": {}
+ },
+ {
+  "name": "diag_s1_open_credit_30",
+  "group": "diagnostic",
+  "change": "S1: chart side open and condor credit 44 -> 30",
+  "rules": {
+   "min_credit_condor": 30.0
+  },
+  "options": {},
+  "waive": [
+   "S1:ADX(14) below 20",
+   "S1:Opening range at least 4",
+   "S1:No gap open",
+   "S1:No squeeze"
+  ],
+  "setups": [
+   "S1"
+  ],
+  "sell_delta": {}
+ },
+ {
+  "name": "diag_s3_vix_checks_off",
+  "group": "diagnostic",
+  "change": "S3: waive both VIX checks",
+  "rules": {},
+  "options": {},
+  "waive": [
+   "S3:India VIX not making higher",
+   "S3:India VIX not up"
+  ],
+  "setups": [
+   "S3"
+  ],
+  "sell_delta": {}
+ },
+ {
+  "name": "diag_s3_chart_open_credit_12",
+  "group": "diagnostic",
+  "change": "S3: VIX checks off and credit 22 -> 12",
+  "rules": {
+   "min_credit": 12.0
+  },
+  "options": {},
+  "waive": [
+   "S3:India VIX not making higher",
+   "S3:India VIX not up"
+  ],
+  "setups": [
+   "S3"
+  ],
+  "sell_delta": {}
+ },
+ {
+  "name": "lots_2",
+  "group": "exit-risk",
+  "change": "2 lots, one-lot exit rule (cost effect only)",
+  "rules": {},
+  "options": {
+   "lots": 2
+  },
+  "waive": [],
+  "setups": null,
+  "sell_delta": {}
+ },
+ {
+  "name": "lots_8",
+  "group": "exit-risk",
+  "change": "8 lots, one-lot exit rule (cost effect only)",
+  "rules": {},
+  "options": {
+   "lots": 8
+  },
+  "waive": [],
+  "setups": null,
+  "sell_delta": {}
+ },
+ {
+  "name": "lots_10",
+  "group": "exit-risk",
+  "change": "10 lots, one-lot exit rule (cost effect only)",
+  "rules": {},
+  "options": {
+   "lots": 10
+  },
+  "waive": [],
+  "setups": null,
+  "sell_delta": {}
+ },
+ {
+  "name": "lots_8_book_half",
+  "group": "exit-risk",
+  "change": "8 lots: sell half at T1, trail the rest under the 9 EMA (the sheet's rule)",
+  "rules": {},
+  "options": {
+   "lots": 8,
+   "t1_book_fraction": 0.5,
+   "lock_after_t1": null
+  },
+  "waive": [],
+  "setups": null,
+  "sell_delta": {}
+ },
+ {
+  "name": "lots_8_book_half_lock2",
+  "group": "exit-risk",
+  "change": "8 lots: sell half at T1, rest with stop at entry + 2 and the trail",
+  "rules": {},
+  "options": {
+   "lots": 8,
+   "t1_book_fraction": 0.5
+  },
+  "waive": [],
+  "setups": null,
+  "sell_delta": {}
+ },
+ {
+  "name": "lots_8_exit_at_t1",
+  "group": "exit-risk",
+  "change": "8 lots: sell everything at T1",
+  "rules": {},
+  "options": {
+   "lots": 8,
+   "exit_at_t1": true
+  },
+  "waive": [],
+  "setups": null,
+  "sell_delta": {}
+ },
+ {
+  "name": "scn_lots8_slip0.25",
+  "group": "scenario",
+  "change": "8 lots and slippage 0.25",
+  "rules": {},
+  "options": {
+   "lots": 8,
+   "slippage": 0.25
+  },
+  "waive": [],
+  "setups": null,
+  "sell_delta": {}
+ },
+ {
+  "name": "scn_lots8_slip0.1",
+  "group": "scenario",
+  "change": "8 lots and slippage 0.1",
+  "rules": {},
+  "options": {
+   "lots": 8,
+   "slippage": 0.1
+  },
+  "waive": [],
+  "setups": null,
+  "sell_delta": {}
+ },
+ {
+  "name": "scn_lots8_slip0.25_book_half",
+  "group": "scenario",
+  "change": "8 lots, slippage 0.25, sell half at T1 and trail the rest",
+  "rules": {},
+  "options": {
+   "lots": 8,
+   "slippage": 0.25,
+   "t1_book_fraction": 0.5,
+   "lock_after_t1": null
+  },
+  "waive": [],
+  "setups": null,
+  "sell_delta": {}
+ },
+ {
+  "name": "scn_lots8_slip0.25_exit_t1",
+  "group": "scenario",
+  "change": "8 lots, slippage 0.25, sell everything at T1",
+  "rules": {},
+  "options": {
+   "lots": 8,
+   "slippage": 0.25,
+   "exit_at_t1": true
+  },
+  "waive": [],
+  "setups": null,
+  "sell_delta": {}
+ },
+ {
+  "name": "drop_only_buys",
+  "group": "drop-setup",
+  "change": "run B1, B2, B3 only",
+  "rules": {},
+  "options": {},
+  "waive": [],
+  "setups": [
+   "B1",
+   "B2",
+   "B3"
+  ],
+  "sell_delta": {}
+ },
+ {
+  "name": "drop_only_sells",
+  "group": "drop-setup",
+  "change": "run S1, S2, S3 only",
+  "rules": {},
+  "options": {},
+  "waive": [],
+  "setups": [
+   "S1",
+   "S2",
+   "S3"
+  ],
+  "sell_delta": {}
+ },
+ {
+  "name": "drop_only_B1",
+  "group": "drop-setup",
+  "change": "run B1 only",
+  "rules": {},
+  "options": {},
+  "waive": [],
+  "setups": [
+   "B1"
+  ],
+  "sell_delta": {}
+ },
+ {
+  "name": "drop_only_S2",
+  "group": "drop-setup",
+  "change": "run S2 only",
+  "rules": {},
+  "options": {},
+  "waive": [],
+  "setups": [
+   "S2"
+  ],
+  "sell_delta": {}
+ },
+ {
+  "name": "drop_no_S2",
+  "group": "drop-setup",
+  "change": "run everything except S2",
+  "rules": {},
+  "options": {},
+  "waive": [],
+  "setups": [
+   "B1",
+   "B2",
+   "B3",
+   "S1",
+   "S3"
+  ],
+  "sell_delta": {}
+ }
+]

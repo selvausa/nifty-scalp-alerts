@@ -1,0 +1,5 @@
+setup,trades,gross_rupees_before_costs,slippage_rupees,charges_rupees,net_rupees,cost_per_trade,avg_win_rupees,cost_as_pct_of_avg_win
+B1,10,2457,650,622,1185,127,278,46.0
+B3,1,-322,65,55,-442,120,0,
+S2,15,-127,1950,1772,-3849,248,179,139.0
+ALL,26,2008,2665,2450,-3106,197,248,79.0
