@@ -346,3 +346,17 @@ def test_option_candles_prefer_the_current_endpoint():
                            staticmethod(lambda ex, sym: {"groww_symbol": "NSE-NIFTY-17Nov26-25150-CE"})})()
     g.option_candles(Leg(25150, "CE", "NIFTY26N1725150CE", 100.0, 0.5))
     assert g.log[0][1] == "legacy" and len(g.log) == 1
+
+
+def test_expiry_for_a_past_day():
+    from scalpbot.groww import expiry_for
+
+    class Api:
+        def get_expiries(self, ex, und, y, m, timeout=None):
+            return {"expiries": {11: ["2026-11-03", "2026-11-09", "2026-11-17", "2026-11-23"],
+                                 12: ["2026-12-01"]}.get(m, [])}
+
+    assert expiry_for(Api(), date(2026, 11, 13)) == date(2026, 11, 17)      # Friday: DTE 2, not the old default 3
+    assert expiry_for(Api(), date(2026, 11, 9)) == date(2026, 11, 9)        # holiday-shifted expiry day itself
+    assert expiry_for(Api(), date(2026, 11, 25)) == date(2026, 12, 1)       # rolls into the next month
+    assert expiry_for(Api(), date(2027, 3, 1)) is None

@@ -121,6 +121,19 @@ def parse_quote(payload: dict) -> tuple[Optional[float], Optional[float], Option
     return bid or None, ask or None, last
 
 
+def expiry_for(api, day: date) -> Optional[date]:
+    """The weekly NIFTY expiry on or after `day`, from Groww's expiry list (this month, then next)."""
+    y, m = day.year, day.month
+    for _ in range(2):
+        p = api.get_expiries("NSE", "NIFTY", y, m, timeout=15)
+        ds = sorted(date.fromisoformat(str(e)[:10]) for e in (p.get("expiries") or []))
+        hit = next((d for d in ds if d >= day), None)
+        if hit:
+            return hit
+        y, m = (y + 1, 1) if m == 12 else (y, m + 1)
+    return None
+
+
 class Groww:
     def __init__(self, s: Settings):
         self.s = s

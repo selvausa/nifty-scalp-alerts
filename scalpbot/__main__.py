@@ -9,7 +9,9 @@ from datetime import date, datetime, time, timedelta
 import pandas as pd
 
 from .config import Settings, ist_now, load_events
-from .groww import Groww
+import numpy as np
+
+from .groww import Groww, expiry_for
 from .indicators import add_indicators
 from .market import build_context, session_only
 from .runner import Bot, fmt_brief, fmt_signal
@@ -146,7 +148,13 @@ def cmd_replay(s: Settings, a) -> int:
     df = add_indicators(session_only(fut))
     events = load_events(s.events_file)
     eng = Engine(s.rules, Sizing(s.capital, s.risk_pct, g.lot_size))
-    dte = a.dte if a.dte is not None else 3
+    dte, dte_note = a.dte, "as given"
+    if dte is None:
+        try:                                   # the real expiry for that day, so Monday/Tuesday rules apply
+            exp = expiry_for(g.api, day)
+            dte, dte_note = int(np.busday_count(day, exp)), f"expiry {exp}"
+        except Exception as e:
+            dte, dte_note = 3, f"assumed; expiry lookup failed: {e}"
     n, st = 0, DayState(day=day.isoformat())      # same de-duplication as the live bot
     if not (df.index.normalize() == pd.Timestamp(day)).any():
         last = df.index[-1].date() if len(df) else "none"
@@ -168,7 +176,7 @@ def cmd_replay(s: Settings, a) -> int:
         if a.verbose:
             for r in eng.rejects:
                 print(f"{ctx.now:%H:%M} rejected {r}")
-    print(f"{n} chart-side signal(s) on {day} (assumed DTE {dte}; option checks not replayed)")
+    print(f"{n} chart-side signal(s) on {day} (DTE {dte}, {dte_note}; option checks not replayed)")
     return 0
 
 
@@ -216,7 +224,7 @@ def main() -> int:
     sub.add_parser("doctor", help="check credentials and data access")
     r = sub.add_parser("replay", help="re-run chart-side rules over a past day")
     r.add_argument("date", help="YYYY-MM-DD")
-    r.add_argument("--dte", type=int, help="days to expiry to assume (default 3)")
+    r.add_argument("--dte", type=int, help="days to expiry to assume (default: worked out from Groww's expiry list)")
     r.add_argument("-v", "--verbose", action="store_true", help="also print why setups were rejected")
     b = sub.add_parser("backtest", help="simulate every setup over a past date range")
     b.add_argument("start", help="YYYY-MM-DD")
