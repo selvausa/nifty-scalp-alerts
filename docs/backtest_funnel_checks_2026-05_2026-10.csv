@@ -1,0 +1,42 @@
+setup,check,stage,raw_blocks,raw_pct_of_pattern,sole_blocker_candles,sole_blocker_episodes,sole_blocker_days
+B1,Candle touched VWAP or 20 EMA and closed beyond the 9 EMA,chart,1971,89.0,159,116,33
+B1,Volume at least the prior candle's,chart,1147,52.0,20,18,13
+B1,Stop size S is 10-20 points,chart,1461,66.0,15,14,12
+B1,ADX(14) is 20 or more,chart,398,18.0,9,8,6
+B1,No PDH/PDL or 100-strike inside T1,chart,963,43.0,6,6,5
+B1,Strike with delta 0.60-0.80,option,5,0.0,5,3,2
+B1,Day range under 100% of expected move (this direction),chart,754,34.0,3,3,2
+B1,Not chopping across VWAP with ADX below 20,chart,43,2.0,0,0,0
+B2,Stop size S is 10-20 points,chart,89,85.0,1,1,1
+B2,Break volume at least the opening-range average,chart,85,81.0,1,1,1
+B2,No PDH/PDL or 100-strike inside T1,chart,74,70.0,1,1,1
+B2,Range width at most 0.4 x expected move,chart,57,54.0,1,1,1
+B2,No gap open beyond PDH/PDL,chart,48,46.0,0,0,0
+B2,"First 5-min close outside the opening range, in the outer half of its own range",chart,7,7.0,0,0,0
+B2,Day range under 100% of expected move (this direction),chart,2,2.0,0,0,0
+B2,15-min bias not against the trade,chart,1,1.0,0,0,0
+B3,Stop size S is 10-20 points,chart,60,87.0,9,8,8
+B3,Close outside the band and beyond the squeeze range,chart,22,32.0,2,1,1
+B3,Break volume at least 1.5 x the prior-10 average,chart,30,43.0,0,0,0
+B3,Day range under 100% of expected move (this direction),chart,20,29.0,0,0,0
+B3,15-min bias not against the trade,chart,16,23.0,0,0,0
+B3,VIX not falling sharply on the break,chart,6,9.0,0,0,0
+S1,ADX(14) below 20 and not rising,chart,147,82.0,23,2,2
+S1,Opening range at least 4 x 5-min ATR wide,chart,94,53.0,8,3,3
+S1,No gap open outside yesterday's range,chart,86,48.0,4,1,1
+S1,No squeeze on the 5-min bands,chart,56,31.0,4,2,2
+S1,Credit at least 44 points,option,4,2.0,4,2,2
+S2,Credit at least 22 points,option,528,33.0,528,90,62
+S2,Day range under 100% of expected move,chart,493,31.0,203,23,20
+S2,Not expiry day after 12:00,chart,276,17.0,182,19,15
+S2,ADX(14) is 20 or more,chart,215,14.0,144,37,29
+S2,India VIX not up more than 5% on the day,chart,293,19.0,95,13,10
+S2,Last 5-min futures close above VWAP,chart,39,2.0,24,9,8
+S2,Last 5-min futures close below VWAP,chart,28,2.0,11,4,4
+S2,"Short strike in the delta range past the level, with a 100-point hedge",option,2,0.0,2,2,2
+S3,Credit at least 22 points,option,94,18.0,94,42,16
+S3,India VIX not up more than 5% on the day,chart,215,42.0,39,25,10
+S3,India VIX not making higher 5-min highs,chart,217,43.0,37,30,11
+S3,Last 15-min candle closed inside the prior 15-min range,chart,207,41.0,32,21,10
+S3,Day extreme not exceeded for 3 closed candles,chart,175,34.0,24,17,10
+S3,Not closing beyond the expected-move band with VIX rising,chart,100,20.0,3,2,2

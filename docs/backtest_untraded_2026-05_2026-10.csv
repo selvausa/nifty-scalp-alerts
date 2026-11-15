@@ -1,0 +1,33 @@
+day,signal_time,setup,side,dte,detail,why,signal_credit,open_credit,entry_credit_after_slippage,needed,gap_pts,direction
+2026-05-07,12:50,S2,BULL PUT SPREAD,3,sell 24200 PE / buy 24100 PE,credit below the minimum at entry,22.6,22.7,21.7,22.0,,
+2026-05-08,12:45,S2,BEAR CALL SPREAD,2,sell 24400 CE / buy 24500 CE,credit below the minimum at entry,23.45,22.95,21.95,22.0,,
+2026-05-13,12:20,S2,BULL PUT SPREAD,4,sell 23200 PE / buy 23100 PE,credit below the minimum at entry,22.25,22.65,21.65,22.0,,
+2026-05-18,12:45,S2,BULL PUT SPREAD,1,sell 23400 PE / buy 23300 PE,credit below the minimum at entry,22.8,22.8,21.8,22.0,,
+2026-05-21,12:35,S2,BEAR CALL SPREAD,3,sell 23900 CE / buy 24000 CE,credit below the minimum at entry,22.35,22.75,21.75,22.0,,
+2026-05-22,11:55,S2,BULL PUT SPREAD,2,sell 23600 PE / buy 23500 PE,credit below the minimum at entry,22.05,21.9,20.9,22.0,,
+2026-05-27,11:40,S2,BULL PUT SPREAD,4,sell 23750 PE / buy 23650 PE,credit below the minimum at entry,22.7,22.75,21.75,22.0,,
+2026-05-29,12:40,S2,BEAR CALL SPREAD,2,sell 24100 CE / buy 24200 CE,credit below the minimum at entry,22.95,22.8,21.8,22.0,,
+2026-06-11,11:30,S2,BULL PUT SPREAD,3,sell 23000 PE / buy 22900 PE,credit below the minimum at entry,22.15,22.45,21.45,22.0,,
+2026-06-11,12:00,S2,BULL PUT SPREAD,3,sell 23050 PE / buy 22950 PE,credit below the minimum at entry,22.25,22.55,21.55,22.0,,
+2026-06-17,11:15,B1,BUY CE,4,24100 CE delta 0.51,index moved before entry,,,,,-3.4,1.0
+2026-07-01,11:30,S2,BULL PUT SPREAD,4,sell 23800 PE / buy 23700 PE,credit below the minimum at entry,23.15,22.85,21.85,22.0,,
+2026-07-01,12:05,S2,BULL PUT SPREAD,4,sell 23800 PE / buy 23700 PE,credit below the minimum at entry,22.15,22.35,21.35,22.0,,
+2026-07-09,11:30,S2,BULL PUT SPREAD,3,sell 23900 PE / buy 23800 PE,credit below the minimum at entry,23.6,22.75,21.75,22.0,,
+2026-07-09,12:05,S2,BULL PUT SPREAD,3,sell 23900 PE / buy 23800 PE,credit below the minimum at entry,22.6,22.55,21.55,22.0,,
+2026-07-22,11:50,S2,BEAR CALL SPREAD,4,sell 24250 CE / buy 24350 CE,credit below the minimum at entry,22.8,22.95,21.95,22.0,,
+2026-07-22,12:20,S2,BEAR CALL SPREAD,4,sell 24200 CE / buy 24300 CE,credit below the minimum at entry,22.45,22.65,21.65,22.0,,
+2026-07-22,13:05,S2,BEAR CALL SPREAD,4,sell 24200 CE / buy 24300 CE,credit below the minimum at entry,22.55,22.8,21.8,22.0,,
+2026-07-29,11:30,S2,BULL PUT SPREAD,4,sell 24050 PE / buy 23950 PE,credit below the minimum at entry,22.8,22.65,21.65,22.0,,
+2026-07-29,12:55,S2,BULL PUT SPREAD,4,sell 24050 PE / buy 23950 PE,credit below the minimum at entry,23.25,22.9,21.9,22.0,,
+2026-07-30,12:50,S2,BULL PUT SPREAD,3,sell 24150 PE / buy 24050 PE,credit below the minimum at entry,22.4,22.35,21.35,22.0,,
+2026-08-06,11:30,S2,BULL PUT SPREAD,3,sell 24500 PE / buy 24400 PE,credit below the minimum at entry,22.6,22.55,21.55,22.0,,
+2026-08-06,12:00,S2,BULL PUT SPREAD,3,sell 24500 PE / buy 24400 PE,credit below the minimum at entry,22.65,22.55,21.55,22.0,,
+2026-08-12,11:30,S2,BEAR CALL SPREAD,4,sell 24550 CE / buy 24650 CE,credit below the minimum at entry,22.9,22.9,21.9,22.0,,
+2026-08-13,11:25,B1,BUY PE,3,24350 PE delta 0.50,index moved before entry,,,,,-7.0,-1.0
+2026-08-13,13:40,B1,BUY CE,3,24400 CE delta 0.48,index moved before entry,,,,,-3.8,1.0
+2026-08-17,14:45,B1,BUY CE,1,24300 CE delta 0.58,index moved before entry,,,,,-10.6,1.0
+2026-09-04,13:50,B1,BUY CE,2,23950 CE delta 0.53,index moved before entry,,,,,-4.6,1.0
+2026-09-24,13:20,B1,BUY PE,3,23200 PE delta 0.50,index moved before entry,,,,,-3.5,-1.0
+2026-10-01,12:20,S2,BEAR CALL SPREAD,3,sell 22700 CE / buy 22800 CE,credit below the minimum at entry,22.25,22.2,21.2,22.0,,
+2026-10-30,11:30,S2,BULL PUT SPREAD,2,sell 22850 PE / buy 22750 PE,credit below the minimum at entry,22.9,22.7,21.7,22.0,,
+2026-10-30,12:15,S2,BULL PUT SPREAD,2,sell 22900 PE / buy 22800 PE,credit below the minimum at entry,22.6,22.75,21.75,22.0,,
