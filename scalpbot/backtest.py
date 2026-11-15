@@ -170,7 +170,8 @@ class GrowwHistory:
                 p = self.g.api.get_historical_candles(
                     "NSE", segment, symbol, f"{a} 09:00:00", f"{b} 15:45:00", "5minute", timeout=20)
                 df = parse_candles(p)
-                if b < date.today():                       # never cache a session that is still open
+                # Groww's history can run days behind: cache only chunks old enough to be complete
+                if b < date.today() - timedelta(days=7):
                     df.to_csv(f)
                 return df
             except Exception as e:
@@ -560,7 +561,8 @@ CAVEATS = """Read this before trusting the numbers:
  - Lot size, expiry day and session hours changed over 2024-2026; older periods fit the rules less well.
  - Days to expiry count weekdays, so a holiday can shift the Monday/Tuesday rules by a day.
  - S1: the whole condor is closed on an index stop (the sheet closes only the threatened side).
- - Expected move uses the VIX formula every day (live uses the ATM straddle on expiry day)."""
+ - Expected move uses the VIX formula every day (live uses the ATM straddle on expiry day).
+ - Groww's history can run a few days behind, so the most recent sessions may be missing."""
 
 
 def report(bt: Backtest, start: date, end: date) -> str:

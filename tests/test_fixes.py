@@ -192,9 +192,11 @@ def test_endpoint_choice_is_per_instrument():
     g = StubGroww(fail={("VIX", "v2")})
     g.candles(VIX, END - timedelta(days=1), END)
     assert g.mode_for(VIX) == "legacy" and g.mode_for(FUT) == "v2"
+    g.candles(FUT, END - timedelta(days=1), END)
+    assert g.mode_for(FUT) == "v2"                # the VIX problem did not move futures
     g.log.clear()
     g.candles(FUT, END - timedelta(days=1), END)
-    assert [m for _, m, *_ in g.log] == ["v2"]    # the VIX problem did not move futures
+    assert [m for _, m, *_ in g.log] == ["v2"]    # choice remembered: one request, not two
 
 
 def test_stale_endpoint_falls_back_for_latest_candle():
@@ -296,3 +298,51 @@ def test_bad_candles_are_repaired():
     assert tuple(df.iloc[2][["o", "h", "l", "c"]]) == (24995, 25020, 24980, 25010)
     from scalpbot.indicators import atr
     assert atr(pd.concat([df] * 6).set_axis(pd.date_range("2026-11-08 09:15", periods=18, freq="5min"))).iloc[-1] < 100
+
+
+# lagging endpoint (seen live: v2 two sessions behind) ----------------------------
+class LaggingGroww(StubGroww):
+    """v2 has nothing after 11 Nov; legacy is current."""
+
+    def __init__(self):
+        super().__init__()
+        self.df = random_days([date(2026, 11, 9), date(2026, 11, 11), date(2026, 11, 12), date(2026, 11, 13),
+                               date(2026, 11, 16)], seed=1)
+
+    def _fetch(self, inst, start, end, mode):
+        df = super()._fetch(inst, start, end, mode)
+        return df[df.index < "2026-11-12"] if mode == "v2" else df
+
+
+def test_lagging_endpoint_is_not_used_for_history_or_vix():
+    g = LaggingGroww()
+    g.fut, g.vix = FUT, VIX
+    end = datetime(2026, 11, 16, 10, 0)
+    fut = g.fut_candles(end, need=pd.Timestamp("2026-11-16 09:55"))
+    days = sorted(set(fut.index.date))
+    assert days[-3:] == [date(2026, 11, 12), date(2026, 11, 13), date(2026, 11, 16)]   # yesterday is really yesterday
+    assert g.mode_for(FUT) == "legacy"
+    vix = g.vix_candles(end)                                                           # no `need`: used to stay stale
+    assert vix.index[-1].date() == date(2026, 11, 16) and g.mode_for(VIX) == "legacy"
+    g.log.clear()
+    g.fut_candles(end + timedelta(minutes=5)); g.vix_candles(end + timedelta(minutes=5))
+    assert {m for _, m, *_ in g.log} == {"legacy"} and len(g.log) == 2                 # one request each from then on
+
+
+def test_endpoint_choice_is_rechecked_each_day(monkeypatch):
+    g = LaggingGroww()
+    g.candles(FUT, datetime(2026, 11, 9), datetime(2026, 11, 13, 15, 0))
+    assert g.mode_for(FUT) == "legacy"
+    monkeypatch.setattr("growwapi.GrowwAPI.__init__", lambda self, token: None)
+    monkeypatch.setattr(g, "_resolve", lambda today: None)
+    g.connect(date(2026, 11, 16))
+    assert g._modes == {}
+
+
+def test_option_candles_prefer_the_current_endpoint():
+    from scalpbot.options import Leg
+    g = LaggingGroww()
+    g.api = type("A", (), {"get_instrument_by_exchange_and_trading_symbol":
+                           staticmethod(lambda ex, sym: {"groww_symbol": "NSE-NIFTY-17Nov26-25150-CE"})})()
+    g.option_candles(Leg(25150, "CE", "NIFTY26N1725150CE", 100.0, 0.5))
+    assert g.log[0][1] == "legacy" and len(g.log) == 1

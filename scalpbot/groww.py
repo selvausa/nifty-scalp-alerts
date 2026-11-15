@@ -153,6 +153,7 @@ class Groww:
         self.api = GrowwAPI(token)
         # the day is recorded only once everything resolved, so a failed lookup is retried
         self._inst, self._day = None, None
+        self._modes.clear()          # re-check each day which candle endpoint is current
         self._resolve(today)
         self._day = today
 
@@ -253,6 +254,9 @@ class Groww:
         """5-minute candles. In auto mode, falls back to the other endpoint when this one
         errors or does not yet have the candle we need. The choice is remembered per
         instrument, so a problem with one symbol never changes how another is fetched."""
+        if (self.auto and self._key(inst) not in self._modes
+                and self._usable(inst, "v2") and self._usable(inst, "legacy")):
+            return self._probe(inst, start, end)
         mode = self.mode_for(inst)
         other = "legacy" if mode == "v2" else "v2"
         can_fall_back = self.auto and self._usable(inst, other)
@@ -277,6 +281,29 @@ class Groww:
             except Exception as e:
                 log.debug("fallback candle endpoint failed: %s", e)
         return df
+
+    def _probe(self, inst: Inst, start: datetime, end: datetime) -> pd.DataFrame:
+        """First request for an instrument: ask both endpoints and keep the one whose
+        data is newest. Groww's newer endpoint has been seen running two sessions behind,
+        which would silently give stale VIX and wrong previous-day levels."""
+        got: dict[str, pd.DataFrame] = {}
+        err: Optional[Exception] = None
+        for mode in ("v2", "legacy"):
+            try:
+                got[mode] = self._fetch(inst, start, end, mode)
+            except Exception as e:
+                err = e
+                log.warning("%s candles failed for %s: %s", mode, self._key(inst), e)
+        if not got:
+            raise err if err else RuntimeError("no candle endpoint answered")
+        last = {m: (d.index[-1] if len(d) else pd.Timestamp.min) for m, d in got.items()}
+        best = max(got, key=lambda m: (last[m], m == "v2"))        # newest wins; a tie goes to v2
+        if any(len(d) for d in got.values()):
+            self._modes[self._key(inst)] = best
+            if len(got) == 2 and last["v2"] != last["legacy"]:
+                log.info("Candles for %s: using %s (latest %s; the other endpoint ends %s)", self._key(inst), best,
+                         last[best], min(last.values()))
+        return got[best]
 
     def _with_history(self, inst: Inst, end: datetime, need: Optional[pd.Timestamp], days: int) -> pd.DataFrame:
         """Prior sessions never change, so they are fetched once a day; each cycle
@@ -333,7 +360,9 @@ class Groww:
         now = datetime.now(IST).replace(tzinfo=None)
         start = now.replace(hour=9, minute=15, second=0, microsecond=0)
         inst = Inst(gs, leg.symbol, "FNO")
-        order = [m for m in (self.mode, "legacy" if self.mode == "v2" else "v2") if self._usable(inst, m)]
+        # today's option candles: the older endpoint first, since the newer one can lag by days
+        first = "legacy" if self.auto else self.mode
+        order = [m for m in (first, "legacy" if first == "v2" else "v2") if self._usable(inst, m)]
         err: Optional[Exception] = None
         for mode in order:   # does not change the endpoint chosen for index candles
             try:

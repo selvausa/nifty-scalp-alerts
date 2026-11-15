@@ -47,7 +47,7 @@ def cmd_doctor(s: Settings, a) -> int:
     def candles(inst_name):
         inst = getattr(g, inst_name)
         df = g.candles(inst, now - timedelta(days=7), now)
-        print(f"   endpoint: {g.mode_for(inst)} · {len(df)} candles · sessions: {sorted(set(df.index.date))[-3:]}")
+        print(f"   endpoint the bot will use: {g.mode_for(inst)} · {len(df)} candles · sessions: {sorted(set(df.index.date))[-3:]}")
         print(df.tail(3).to_string().replace("\n", "\n   "))
         if df.empty:
             raise RuntimeError("no candles returned")
@@ -64,8 +64,10 @@ def cmd_doctor(s: Settings, a) -> int:
             last_wd -= timedelta(days=1)
         for name, d in ((g.mode_for(inst), df), (other, alt)):
             if len(d) and d.index[-1].date() < last_wd:
-                print(f"   WARNING: {name} ends {d.index[-1].date()}, before the last weekday {last_wd}. "
-                      "Fine if the days between were market holidays; otherwise this endpoint lags.")
+                chosen = name == g.mode_for(inst)
+                print(f"   {'WARNING' if chosen else 'note'}: {name} ends {d.index[-1].date()}, before the last "
+                      f"weekday {last_wd}." + (" The bot would trade on stale data unless those days were holidays."
+                                               if chosen else " Not a problem: the bot uses the other endpoint."))
 
     step("Futures 5-min candles", lambda: candles("fut"))
     if g.vix:
