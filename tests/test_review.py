@@ -237,3 +237,42 @@ def test_new_builtin_experiments_are_merged_into_an_old_spec(tmp_path, monkeypat
                  "--out", str(tmp_path / "docs")]) == 0
     names = [e.name for e in load_spec(tmp_path / "experiments" / "sweeps_2026-10_2026-10.json")]
     assert "lots_8" in names and names[: len(old)] == [e.name for e in old]
+
+
+def test_experiments_short_of_cache_are_refetched_online(tmp_path, monkeypatch, capsys):
+    """Pass 1 runs offline; an experiment that lacked option data is rerun with Groww and its row replaced."""
+    monkeypatch.setattr("scalpbot.backtest._time.sleep", lambda *_: None)
+    monkeypatch.setenv("DATA_DIR", str(tmp_path / "data"))
+    monkeypatch.setenv("EVENTS_FILE", str(tmp_path / "none.txt"))
+    monkeypatch.setenv("VIX_GROWW_SYMBOL", "NSE-INDIAVIX")
+    monkeypatch.chdir(tmp_path)
+    g = FakeG()
+    plain = g.api.get_historical_candles                  # the stock fake refuses one strike; here every contract answers
+    g.api.get_historical_candles = lambda ex, seg, sym, *a, **k: plain(ex, seg, sym.replace("-25100-PE", "-25150-PE"), *a, **k)
+
+    class FakeGroww:
+        vix = None
+
+        def __init__(self, s):
+            self.api = g.api
+
+        def connect(self, today):
+            pass
+
+    monkeypatch.setattr("scalpbot.groww.Groww", FakeGroww)
+    rc = main(["2026-10-05", "2026-10-23", "--only", "baseline,entry_s_max_40,entry_min_credit_12", "--jobs", "1",
+               "--out", str(tmp_path / "docs")])
+    out = capsys.readouterr().out
+    assert rc == 0
+    sweeps = pd.read_csv(tmp_path / "docs" / "backtest_sweeps_2026-10_2026-10.csv")
+    assert set(sweeps["experiment"]) == {"baseline", "entry_s_max_40", "entry_min_credit_12"}
+    if "Pass 2" in out:                                   # something was short: after refetching nothing is
+        assert sweeps["missing_cache_files"].fillna(0).sum() == 0
+    again = main(["2026-10-05", "2026-10-23", "--offline", "--only", "entry_s_max_40,entry_min_credit_12",
+                  "--jobs", "1", "--out", str(tmp_path / "docs2")])
+    out2 = capsys.readouterr().out
+    assert again == 0 and "not cached" not in out2        # the cache is now complete for these experiments
+    a = sweeps[sweeps.experiment != "baseline"].reset_index(drop=True)
+    b = pd.read_csv(tmp_path / "docs2" / "backtest_sweeps_2026-10_2026-10.csv").reset_index(drop=True)
+    pd.testing.assert_frame_equal(a[["experiment", "setup", "trades", "net_rupees"]],
+                                  b[["experiment", "setup", "trades", "net_rupees"]])

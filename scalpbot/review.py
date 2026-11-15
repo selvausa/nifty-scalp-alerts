@@ -348,10 +348,11 @@ def _init(cache: str, start: str, end: str, vix: str, events_file: str):
 
 def _work(exp_dict: dict) -> list[dict]:
     exp = Experiment(**exp_dict)
+    before = _W["hist"].failed
     bt = run_experiment(_W["hist"], exp, *_W["range"], _W["events"], _W["frame"])
     rows = result_rows(exp, bt)
     for r in rows:
-        r["missing_cache_files"] = _W["hist"].failed
+        r["missing_cache_files"] = _W["hist"].failed - before      # option-days this experiment needed and lacked
     return rows
 
 
@@ -425,26 +426,62 @@ def main(argv=None) -> int:
             print(fc.to_string(index=False), "\n")
             print(cb.to_string(index=False), "\n")
 
-    # ---- sweeps (offline, in parallel; results appended as they finish so a stopped run keeps its rows)
-    sweep = [e for e in exps]
+    # ---- sweeps. Pass 1: offline and in parallel. An experiment that loosens a filter looks at candles
+    # the baseline never priced, so it can need option data that is not cached yet; pass 2 reruns those
+    # one at a time with Groww, which fills the cache, and replaces their rows.
     path = out / f"backtest_sweeps_{tag}.csv"
-    with path.open("w", newline="") as f:
-        w = csv.DictWriter(f, fieldnames=COLUMNS, extrasaction="ignore")
-        w.writeheader()
-        with ProcessPoolExecutor(max_workers=max(1, a.jobs), initializer=_init,
-                                 initargs=(str(cache), a.start, a.end, s.vix_groww_symbol, str(s.events_file))) as pool:
-            for i, rows in enumerate(pool.map(_work, [e.__dict__ for e in sweep]), 1):
-                for r in rows:
+    results: dict[str, list[dict]] = {}
+
+    def write() -> None:
+        with path.open("w", newline="") as f:
+            w = csv.DictWriter(f, fieldnames=COLUMNS, extrasaction="ignore")
+            w.writeheader()
+            for e in exps:
+                for r in results.get(e.name, []):
                     w.writerow(r)
-                f.flush()
-                allr = next((r for r in rows if r["setup"] == "ALL"), rows[0])
-                print(f"[{i}/{len(sweep)}] {allr['experiment']}: {allr.get('trades', 0)} trades, "
-                      f"net ₹{allr.get('net_rupees', 0):,}, expectancy ₹{allr.get('expectancy_per_trade', 0):,}/trade")
-                if allr["experiment"] == "baseline" and base is not None and (
-                        allr.get("trades", 0) != len(bt.trades) or allr.get("alerts") != bt.signals):
-                    print("  WARNING: the offline baseline differs from the online one "
-                          f"({allr.get('alerts')} alerts / {allr.get('trades', 0)} trades vs {bt.signals} / "
-                          f"{len(bt.trades)}): the cache is incomplete, so sweep rows are not comparable.")
+
+    def show(i: int, n: int, rows: list[dict], note: str = "") -> None:
+        allr = next((r for r in rows if r["setup"] == "ALL"), rows[0])
+        print(f"[{i}/{n}] {allr['experiment']}: {allr.get('trades', 0)} trades, net ₹{allr.get('net_rupees', 0):,}, "
+              f"expectancy ₹{allr.get('expectancy_per_trade', 0):,}/trade"
+              + (f", {allr['missing_cache_files']} option-days not cached" if allr.get("missing_cache_files") else "")
+              + note)
+
+    with ProcessPoolExecutor(max_workers=max(1, a.jobs), initializer=_init,
+                             initargs=(str(cache), a.start, a.end, s.vix_groww_symbol, str(s.events_file))) as pool:
+        for i, rows in enumerate(pool.map(_work, [e.__dict__ for e in exps]), 1):
+            results[rows[0]["experiment"]] = rows
+            show(i, len(exps), rows)
+            if i % 5 == 0:
+                write()
+            allr = next((r for r in rows if r["setup"] == "ALL"), rows[0])
+            if allr["experiment"] == "baseline" and base is not None and (
+                    allr.get("trades", 0) != len(bt.trades) or allr.get("alerts") != bt.signals):
+                print("  WARNING: the offline baseline differs from the online one "
+                      f"({allr.get('alerts')} alerts / {allr.get('trades', 0)} trades vs {bt.signals} / "
+                      f"{len(bt.trades)}): the cache is incomplete, so sweep rows are not comparable.")
+    write()
+    short = [e for e in exps if any(r.get("missing_cache_files") for r in results.get(e.name, []))]
+    if short and a.offline:
+        print(f"\n{len(short)} experiment(s) needed option data that is not cached; their rows are unreliable. "
+              "Run without --offline to fetch it.")
+    elif short:
+        print(f"\nPass 2: fetching option data for {len(short)} experiment(s) and rerunning them one at a time...")
+        if base is None:
+            from .groww import Groww
+            g = Groww(s)
+            g.connect(ist_now().date())
+            hist = GrowwHistory(g, start, end, cache, vix_symbol=s.vix_groww_symbol)
+        frame = add_indicators(session_only(hist.fut))
+        events = load_events(s.events_file)
+        for i, e in enumerate(short, 1):
+            before, calls = hist.failed, hist.calls
+            rows = result_rows(e, run_experiment(hist, e, start, end, events, frame))
+            for r in rows:
+                r["missing_cache_files"] = hist.failed - before
+            results[e.name] = rows
+            show(i, len(short), rows, f" ({hist.calls - calls} Groww requests)")
+            write()
     print(f"\nWrote {path} and the baseline files in {out}/")
     return 0
 

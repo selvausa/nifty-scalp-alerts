@@ -408,6 +408,7 @@ class Backtest:
         self.engine_factory = engine_factory or (lambda rules, sizing: Engine(rules, sizing))
         self.ctx_cache = ctx_cache                          # shared across sweep runs: contexts do not depend on rules
         self.frame = frame                                  # futures frame with indicators, if already built
+        self.context_days = 0                               # 0 = full history per candle (the default, exact)
         self.candle_log: list[dict] = []                    # one row per candle where a setup's pattern appeared
         self.untraded: list[dict] = []                      # alerts that did not become trades, with the numbers
         self.passed: dict[str, int] = {}                    # candles that passed every check, per setup
@@ -449,6 +450,15 @@ class Backtest:
             st = DayState(day=day.isoformat())
             pos: Optional[Position] = None
             fut_day = df[df.index.normalize() == pd.Timestamp(day)]
+            # Contexts only need recent history: indicators are already columns, and the 15-minute
+            # EMA converges long before 25 days. A short window makes each candle several times cheaper.
+            recent = df[df.index >= pd.Timestamp(day) - pd.Timedelta(days=self.context_days)] \
+                if self.context_days else df
+            vix_recent = self.h.vix
+            if self.context_days and self.h.vix is not None and not self.h.vix.empty:
+                v = self.h.vix
+                vix_recent = v[(v.index >= pd.Timestamp(day) - pd.Timedelta(days=10))
+                               & (v.index < pd.Timestamp(day) + pd.Timedelta(days=1))]
             for ts in fut_day.index:
                 basis = 0.0
                 if spot is not None and ts in spot.index:
@@ -457,7 +467,8 @@ class Backtest:
                 if self.ctx_cache is not None and key in self.ctx_cache:
                     ctx = self.ctx_cache[key]
                 else:
-                    ctx = build_context(df, ts, self.h.vix, dte, self.events, basis, None, self.r.vix_fall_sharp_pct)
+                    ctx = build_context(recent, ts, vix_recent if self.context_days else self.h.vix, dte, self.events,
+                                        basis, None, self.r.vix_fall_sharp_pct)
                     if self.ctx_cache is not None:
                         self.ctx_cache[key] = ctx
                 if ctx is None:
