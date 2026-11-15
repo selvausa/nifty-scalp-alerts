@@ -12,7 +12,8 @@ from .config import Event, hm
 from .indicators import ema, to_15m
 
 FIVE = pd.Timedelta(minutes=5)
-SESSION_START, SESSION_END = time(9, 15), time(15, 30)
+SESSION_START, SESSION_END = time(9, 15), time(15, 45)   # F&O trades to 15:40
+MIN_SESSION_CANDLES = 30     # shorter sessions (Diwali muhurat) are not a "previous day"
 
 
 @dataclass
@@ -140,7 +141,11 @@ def build_context(
     prior = hist[hist.index.normalize() < day]
     if prior.empty or today.empty:
         return None
-    pd_ = prior[prior.index.normalize() == prior.index.normalize()[-1]]
+    counts = prior.groupby(prior.index.normalize()).size()
+    full = counts[counts >= MIN_SESSION_CANDLES]
+    if full.empty:
+        return None
+    pd_ = prior[prior.index.normalize() == full.index[-1]]
     pdh, pdl, pdc = float(pd_["h"].max()), float(pd_["l"].min()), float(pd_["c"].iloc[-1])
     p = (pdh + pdl + pdc) / 3
     bc = (pdh + pdl) / 2

@@ -51,6 +51,21 @@ def cmd_doctor(s: Settings, a) -> int:
         print(df.tail(3).to_string().replace("\n", "\n   "))
         if df.empty:
             raise RuntimeError("no candles returned")
+        other = "legacy" if g.mode_for(inst) == "v2" else "v2"
+        try:
+            alt = g._fetch(inst, now - timedelta(days=7), now, other)
+            print(f"   other endpoint ({other}): {len(alt)} candles, last {alt.index[-1] if len(alt) else 'none'}")
+        except Exception as e:
+            alt = df.iloc[:0]
+            print(f"   other endpoint ({other}): failed ({e})")
+        # the live bot needs the newest session; flag an endpoint that is days behind
+        last_wd = now.date() if now.time() >= time(9, 30) else now.date() - timedelta(days=1)
+        while last_wd.weekday() >= 5:
+            last_wd -= timedelta(days=1)
+        for name, d in ((g.mode_for(inst), df), (other, alt)):
+            if len(d) and d.index[-1].date() < last_wd:
+                print(f"   WARNING: {name} ends {d.index[-1].date()}, before the last weekday {last_wd}. "
+                      "Fine if the days between were market holidays; otherwise this endpoint lags.")
 
     step("Futures 5-min candles", lambda: candles("fut"))
     if g.vix:
@@ -100,7 +115,6 @@ def cmd_doctor(s: Settings, a) -> int:
         strike = int(round((g.spot() or 25000) / 100) * 100)
         sym = groww_symbol(exp, strike, "CE")
         if lst and sym not in lst:
-            print(f"   NOTE: built symbol {sym} is not in Groww's list; the backtest will match by strike instead")
             sym = next((x for x in lst if x.endswith(f"-{strike}-CE")), sym)
         from .groww import parse_candles
         df = parse_candles(g.api.get_historical_candles("NSE", "FNO", sym, f"{exp} 09:00:00", f"{exp} 15:45:00",

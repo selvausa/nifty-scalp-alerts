@@ -261,3 +261,23 @@ def test_range_used_property(hist):
     day, _ = orb_day(hist)
     ctx, _, _ = run(day, hist)
     assert ctx.range_used == pytest.approx(ctx.day_range / ctx.em)
+
+
+# special sessions ------------------------------------------------------------
+def test_short_special_session_is_not_the_previous_day(hist):
+    """A one-hour Diwali muhurat session must not supply PDH/PDL/PDC."""
+    day, _ = orb_day(hist)
+    full = build_context(add_indicators(pd.concat([hist, day])), day.index[-1], None, 3, [])
+    idx = pd.date_range("2026-11-12 13:45", periods=12, freq="5min")        # a short session after the last full day
+    odd = pd.DataFrame({"o": 30000.0, "h": 30050.0, "l": 29950.0, "c": 30000.0, "v": 10.0}, index=idx)
+    hist2 = pd.concat([hist[hist.index < "2026-11-12 13:45"], odd]).sort_index()
+    hist2 = hist2[~((hist2.index.normalize() == "2026-11-12") & (hist2.index < "2026-11-12 13:45"))]
+    ctx = build_context(add_indicators(pd.concat([hist2, day])), day.index[-1], None, 3, [])
+    assert ctx.pdh < 29000 and ctx.pdc < 29000                               # taken from the last full session
+
+
+def test_session_includes_candles_to_1540():
+    from scalpbot.market import session_only
+    idx = pd.date_range("2026-11-11 15:20", periods=8, freq="5min")          # 15:20 .. 15:55
+    df = pd.DataFrame({"o": 1.0, "h": 1.0, "l": 1.0, "c": 1.0, "v": 1.0}, index=idx)
+    assert list(session_only(df).index.strftime("%H:%M")) == ["15:20", "15:25", "15:30", "15:35", "15:40"]
