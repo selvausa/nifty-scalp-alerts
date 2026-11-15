@@ -386,3 +386,12 @@ def test_requests_are_spaced_and_other_errors_are_not_retried_as_rate_limits(tmp
     monkeypatch.setattr("scalpbot.backtest._time.sleep", lambda s: (slept.append(s), clock.__setitem__("t", clock["t"] + s)))
     h = GrowwHistory(FakeG(), date(2026, 10, 5), date(2026, 10, 9), tmp_path, pause=0.4, vix_symbol="NSE-INDIAVIX")
     assert h.calls > 3 and len(slept) >= h.calls - 1 and all(abs(s - 0.4) < 1e-9 for s in slept)
+
+
+def test_report_says_why_setups_did_not_fire(run):
+    h, bt = run
+    assert bt.near and bt.blockers
+    for (setup, check), n in bt.blockers.items():
+        assert 0 < n <= bt.near[setup] and check
+    text = report(bt, DAYS[1], DAYS[-1])
+    assert "Why setups did not fire" in text and "blocked by" in text

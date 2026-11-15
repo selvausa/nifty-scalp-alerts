@@ -345,6 +345,8 @@ class Backtest:
         self.trades: list[Trade] = []
         self.skipped: dict[str, int] = {}
         self.signals = 0
+        self.near: dict[str, int] = {}                      # candles where a setup's pattern appeared
+        self.blockers: dict[tuple[str, str], int] = {}      # (setup, failed check) -> candles
 
     def _skip(self, why: str) -> None:
         self.skipped[why] = self.skipped.get(why, 0) + 1
@@ -393,7 +395,15 @@ class Backtest:
                 if st.blocked(self.r, self.o.capital):
                     continue
                 opt = HistOptions(self.h, ts, ctx.spot(float(ctx.row["c"])), expiry) if self.o.use_options else None
-                for sig in eng.evaluate(ctx, opt):
+                sigs = eng.evaluate(ctx, opt)
+                for rej in eng.rejects:                     # "B2 BUY CE: check; check"
+                    head, _, checks = rej.partition(": ")
+                    setup = head.split()[0]
+                    self.near[setup] = self.near.get(setup, 0) + 1
+                    for c in checks.split("; "):
+                        self.blockers[(setup, c)] = self.blockers.get((setup, c), 0) + 1
+                for sig in sigs:
+                    self.near[sig.setup] = self.near.get(sig.setup, 0) + 1
                     if not st.can_send(sig.key, ctx.now, self.r.cooldown_min):
                         continue
                     self.signals += 1
@@ -619,6 +629,14 @@ def report(bt: Backtest, start: date, end: date) -> str:
         out.append("Exits: " + ", ".join(f"{k} {v}" for k, v in sorted(reasons.items(), key=lambda x: -x[1])))
     else:
         out.append("No trades.")
+    if bt.near:
+        out += ["", "Why setups did not fire (candles where the setup's pattern appeared, and the checks that failed):"]
+        for setup in sorted(bt.near):
+            tops = sorted(((n, c) for (s, c), n in bt.blockers.items() if s == setup), reverse=True)[:4]
+            out.append(f"  {setup}: pattern on {bt.near[setup]} candles" + ("; blocked by " + ", ".join(
+                f"{c} ({n})" for n, c in tops) if tops else ""))
+        out.append("  A setup missing from this list never met its defining condition "
+                   "(bias for B1 and S2, expiry day for S1, a full expected-move range for S3).")
     if bt.skipped:
         out.append("Alerts not traded: " + ", ".join(f"{k} {v}" for k, v in sorted(bt.skipped.items(), key=lambda x: -x[1])))
     out += ["", CAVEATS.format(slip=bt.o.slippage, lot=bt.o.lot)]
