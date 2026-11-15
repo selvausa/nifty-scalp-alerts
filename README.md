@@ -81,6 +81,8 @@ capital, one position at a time) work only if you send these commands.
 - Reminders at 14:45 and 15:00 while a position is open.
 - `data/alerts.csv`: one row per alert, for forward-testing.
 - B2 and B3 alert once a day per side; other setups at most once every 30 minutes per side.
+- Commands sent while the bot is not running are ignored when it starts; send them again.
+- If option data cannot be fetched, the alert still goes out with those checks marked ❔.
 
 ## Where the sheet needed interpreting
 

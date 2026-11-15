@@ -4,7 +4,6 @@ from __future__ import annotations
 import csv
 import html
 import logging
-import math
 import time as _time
 from datetime import datetime, time, timedelta
 from typing import Optional
@@ -59,7 +58,7 @@ def fmt_signal(sig: Signal, ctx: Ctx) -> str:
 def fmt_brief(ctx: Ctx, lot: int) -> str:
     b, p, t = ctx.cpr
     orr = f"{ctx.or30[0]:,.1f}–{ctx.or30[1]:,.1f}" if ctx.or30 else "n/a"
-    used = ctx.day_range / ctx.em if ctx.em and not math.isnan(ctx.em) else float("nan")
+    used = ctx.range_used
     ev = ", ".join(x.name for x in ctx.events)
     return "\n".join([
         f"<b>NIFTY levels {ctx.now:%d %b %H:%M}</b> (futures prices)",
@@ -82,9 +81,11 @@ class Bot:
         self.ctx: Optional[Ctx] = None
         self.last_err = datetime.min
         self.miss = 0
+        self.basis: Optional[float] = None    # last known futures minus spot
 
     # ------------------------------------------------------------------ loop
     def run(self) -> None:
+        self.tg.drain()      # commands sent while the bot was down are ignored, not replayed
         self.tg.send("🤖 Scalp alert bot started. /help for commands.\n<i>" + DISCLAIMER + "</i>")
         while True:
             now = ist_now()
@@ -142,13 +143,18 @@ class Bot:
             log.warning("VIX candles failed: %s", e)
         if (vix is None or vix.empty) and st.once("vix_missing"):
             self.tg.send("⚠️ India VIX data unavailable: VIX filters and expected move are off, sell setups will show ❔.")
-        basis = 0.0
         try:
             spot = self.g.spot()
-            if spot:
-                basis = float(fut["c"].iloc[-1]) - spot
+            if not spot:
+                raise RuntimeError("no spot price returned")
+            self.basis = float(fut["c"].iloc[-1]) - spot
         except Exception as e:
-            log.debug("spot failed: %s", e)
+            # keep the last known basis; it moves slowly. With none at all, say so.
+            log.warning("NIFTY spot unavailable (%s); basis %s", e, self.basis)
+            if self.basis is None and st.once("basis_missing"):
+                self.tg.send("⚠️ NIFTY spot price unavailable: strike levels are using the futures price, "
+                             "which can sit tens of points above spot. Check strikes by hand.")
+        basis = self.basis or 0.0
         dte = self.g.dte(today)
         if dte <= 0 and st.em is None:    # expiry day: expected move from the ATM straddle
             try:
@@ -158,7 +164,8 @@ class Bot:
             except Exception as e:
                 log.warning("straddle for expected move failed: %s", e)
         df = add_indicators(session_only(fut))
-        ctx = build_context(df, ts, vix, dte, load_events(s.events_file), basis, st.em if dte <= 0 else None)
+        ctx = build_context(df, ts, vix, dte, load_events(s.events_file), basis, st.em if dte <= 0 else None,
+                            s.rules.vix_fall_sharp_pct)
         if ctx is None:
             log.warning("Not enough history to evaluate %s", ts)
             return
@@ -219,7 +226,9 @@ class Bot:
         if cmd in ("/start", "/help"):
             self.tg.send(HELP)
             return
-        if cmd == "/taken":
+        if cmd == "/taken" and st.position_open:
+            msg = "A position is already marked open; not counted again."
+        elif cmd == "/taken":
             st.position_open, st.trades = True, st.trades + 1
             msg = f"Noted: trade {st.trades} of {self.s.rules.max_trades} is open. New alerts are off until you close it."
         elif cmd == "/win":

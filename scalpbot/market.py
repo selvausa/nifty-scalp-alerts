@@ -68,6 +68,11 @@ class Ctx:
         return self.day_high - self.day_low
 
     @property
+    def range_used(self) -> float:
+        """Share of the expected move the day's range has used; NaN when unknown."""
+        return self.day_range / self.em if self.em and not math.isnan(self.em) else float("nan")
+
+    @property
     def is_event_day(self) -> bool:
         return bool(self.events)
 
@@ -121,6 +126,7 @@ def build_context(
     events: list[Event],
     basis: float = 0.0,
     em_override: Optional[float] = None,
+    vix_fall_pct: float = 1.0,
 ) -> Optional[Ctx]:
     """`df` is the futures 5-min frame with indicators; `ts` the signal candle start.
 
@@ -174,7 +180,7 @@ def build_context(
                 v_chg = (v_now / float(vp["c"].iloc[-1]) - 1) * 100
             if len(vt) >= 4:
                 v_rising = v_now > float(vt["c"].iloc[-4])
-                v_fall = (v_now / float(vt["c"].iloc[-4]) - 1) * 100 <= -1.0
+                v_fall = (v_now / float(vt["c"].iloc[-4]) - 1) * 100 <= -abs(vix_fall_pct)
             if len(vt) >= 2:
                 v_hh = float(vt["h"].iloc[-1]) > float(vt["h"].iloc[-2])
             if not em_override:

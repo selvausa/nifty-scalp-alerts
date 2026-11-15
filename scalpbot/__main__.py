@@ -14,6 +14,7 @@ from .indicators import add_indicators
 from .market import build_context, session_only
 from .runner import Bot, fmt_brief, fmt_signal
 from .setups import Engine, Sizing
+from .state import DayState
 from .telegram import Telegram
 
 
@@ -46,7 +47,7 @@ def cmd_doctor(s: Settings, a) -> int:
     def candles(inst_name):
         inst = getattr(g, inst_name)
         df = g.candles(inst, now - timedelta(days=7), now)
-        print(f"   endpoint: {g.mode} · {len(df)} candles · sessions: {sorted(set(df.index.date))[-3:]}")
+        print(f"   endpoint: {g.mode_for(inst)} · {len(df)} candles · sessions: {sorted(set(df.index.date))[-3:]}")
         print(df.tail(3).to_string().replace("\n", "\n   "))
         if df.empty:
             raise RuntimeError("no candles returned")
@@ -99,18 +100,17 @@ def cmd_replay(s: Settings, a) -> int:
     events = load_events(s.events_file)
     eng = Engine(s.rules, Sizing(s.capital, s.risk_pct, g.lot_size))
     dte = a.dte if a.dte is not None else 3
-    n, sent = 0, {}
+    n, st = 0, DayState(day=day.isoformat())      # same de-duplication as the live bot
     for ts in df.index[df.index.normalize() == pd.Timestamp(day)]:
-        ctx = build_context(df, ts, vix, dte, events)
+        ctx = build_context(df, ts, vix, dte, events, vix_fall_pct=s.rules.vix_fall_sharp_pct)
         if ctx is None:
             continue
         if ctx.now.time() == time(9, 45):
             print(_plain(fmt_brief(ctx, g.lot_size)), "\n")
         for sig in eng.evaluate(ctx, None):
-            last = sent.get(sig.key)
-            if last and (ctx.now - last) < timedelta(minutes=s.rules.cooldown_min):
+            if not st.can_send(sig.key, ctx.now, s.rules.cooldown_min):
                 continue
-            sent[sig.key] = ctx.now
+            st.mark_sent(sig.key, ctx.now)
             n += 1
             print(_plain(fmt_signal(sig, ctx)), "\n" + "-" * 60)
         if a.verbose:

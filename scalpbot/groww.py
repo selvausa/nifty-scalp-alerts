@@ -113,6 +113,8 @@ class Groww:
         self.expiry: str = ""
         self.mode = s.candle_api if s.candle_api in ("v2", "legacy") else "v2"
         self.auto = s.candle_api not in ("v2", "legacy")
+        self._modes: dict[str, str] = {}      # endpoint that works, per instrument
+        self._hist: dict[str, tuple[date, pd.DataFrame]] = {}   # prior sessions, per instrument
         self._inst: Optional[pd.DataFrame] = None
         self._day: Optional[date] = None
 
@@ -132,8 +134,10 @@ class Groww:
         else:
             raise RuntimeError("Set GROWW_API_KEY with GROWW_TOTP_SECRET or GROWW_API_SECRET, or GROWW_ACCESS_TOKEN")
         self.api = GrowwAPI(token)
-        self._inst, self._day = None, today
+        # the day is recorded only once everything resolved, so a failed lookup is retried
+        self._inst, self._day = None, None
         self._resolve(today)
+        self._day = today
 
     def ensure(self, today: date) -> None:
         if self.api is None or self._day != today:   # Groww tokens expire daily
@@ -149,6 +153,7 @@ class Groww:
     def _resolve(self, today: date) -> None:
         s, tday = self.s, today.isoformat()
         df = None
+        self.vix = None
         try:
             df = self.instruments()
             und = df[(df["underlying_symbol"].astype(str) == "NIFTY") & (df["exchange"].astype(str) == "NSE")]
@@ -215,37 +220,73 @@ class Groww:
                                                         start.strftime(FMT), end.strftime(FMT), 5, timeout=15)
         return parse_candles(p)
 
+    @staticmethod
+    def _key(inst: Inst) -> str:
+        return inst.groww_symbol or inst.trading_symbol
+
+    def mode_for(self, inst: Inst) -> str:
+        return self._modes.get(self._key(inst), self.mode)
+
+    @staticmethod
+    def _usable(inst: Inst, mode: str) -> bool:
+        """v2 needs the Groww symbol; the older endpoint needs the trading symbol."""
+        return bool(inst.groww_symbol if mode == "v2" else inst.trading_symbol)
+
     def candles(self, inst: Inst, start: datetime, end: datetime, need: Optional[pd.Timestamp] = None) -> pd.DataFrame:
-        """5-minute candles. In auto mode, falls back to the older endpoint when the newer
-        one errors or does not yet have the candle we need, and sticks with what works."""
-        other = "legacy" if self.mode == "v2" else "v2"
+        """5-minute candles. In auto mode, falls back to the other endpoint when this one
+        errors or does not yet have the candle we need. The choice is remembered per
+        instrument, so a problem with one symbol never changes how another is fetched."""
+        mode = self.mode_for(inst)
+        other = "legacy" if mode == "v2" else "v2"
+        can_fall_back = self.auto and self._usable(inst, other)
+        if self.auto and not self._usable(inst, mode) and can_fall_back:
+            mode, other, can_fall_back = other, mode, False
         try:
-            df = self._fetch(inst, start, end, self.mode)
+            df = self._fetch(inst, start, end, mode)
         except Exception as e:
-            if not self.auto:
+            if not can_fall_back:
                 raise
-            log.warning("%s candles failed for %s (%s); trying %s", self.mode, inst.groww_symbol, e, other)
+            log.warning("%s candles failed for %s (%s); trying %s", mode, self._key(inst), e, other)
             df = self._fetch(inst, start, end, other)
-            self.mode = other
+            self._modes[self._key(inst)] = other
             return df
-        if self.auto and need is not None and (df.empty or need not in df.index):
+        if can_fall_back and need is not None and (df.empty or need not in df.index):
             try:
                 alt = self._fetch(inst, start, end, other)
                 if need in alt.index:
-                    log.info("Switching candle endpoint to %s (it has the latest candle)", other)
-                    self.mode = other
+                    log.info("Using the %s candle endpoint for %s (it has the latest candle)", other, self._key(inst))
+                    self._modes[self._key(inst)] = other
                     return alt
             except Exception as e:
                 log.debug("fallback candle endpoint failed: %s", e)
         return df
 
+    def _with_history(self, inst: Inst, end: datetime, need: Optional[pd.Timestamp], days: int) -> pd.DataFrame:
+        """Prior sessions never change, so they are fetched once a day; each cycle
+        then asks only for today's candles."""
+        day = end.date()
+        midnight = datetime.combine(day, datetime.min.time())
+        key = self._key(inst)
+        cached = self._hist.get(key)
+        if cached is None or cached[0] != day:
+            hist = self.candles(inst, midnight - timedelta(days=days), midnight)
+            hist = hist[hist.index < pd.Timestamp(midnight)]
+            if hist.empty:
+                return self.candles(inst, midnight - timedelta(days=days), end, need)   # nothing to cache yet
+            self._hist[key] = (day, hist)
+        else:
+            hist = cached[1]
+        today = self.candles(inst, midnight, end, need)
+        today = today[today.index >= pd.Timestamp(midnight)]
+        return pd.concat([hist, today]) if not today.empty else hist
+
     def fut_candles(self, end: datetime, need: Optional[pd.Timestamp] = None, days: int = 7) -> pd.DataFrame:
-        return self.candles(self.fut, end - timedelta(days=days), end, need)
+        return self._with_history(self.fut, end, need, days)
 
     def vix_candles(self, end: datetime, days: int = 7) -> Optional[pd.DataFrame]:
         if self.vix is None:
             return None
-        return self.candles(self.vix, end - timedelta(days=days), end)
+        return self._with_history(self.vix, end, None, days)
 
     def spot(self) -> Optional[float]:
         p = self.api.get_ltp("NSE_NIFTY", "CASH", timeout=10)
@@ -275,7 +316,7 @@ class Groww:
         now = datetime.now(IST).replace(tzinfo=None)
         start = now.replace(hour=9, minute=15, second=0, microsecond=0)
         inst = Inst(gs, leg.symbol, "FNO")
-        order = [self.mode, "legacy" if self.mode == "v2" else "v2"] if gs else ["legacy"]
+        order = [m for m in (self.mode, "legacy" if self.mode == "v2" else "v2") if self._usable(inst, m)]
         err: Optional[Exception] = None
         for mode in order:   # does not change the endpoint chosen for index candles
             try:

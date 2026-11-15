@@ -78,6 +78,7 @@ class Engine:
     def evaluate(self, ctx: Ctx, opt: Optional[OptionsData]) -> list[Signal]:
         self.rejects = []
         self._chain: Optional[Chain] = None
+        self._chain_err: Optional[str] = None
         out: list[Signal] = []
         for fn in (self._b1, self._b2, self._b3, self._s1, self._s2, self._s3):
             for sig in fn(ctx, opt):
@@ -88,9 +89,19 @@ class Engine:
                     self.rejects.append(f"{sig.setup} {sig.side}: " + "; ".join(bad))
         return out
 
-    def _get_chain(self, opt: OptionsData) -> Chain:
-        if self._chain is None:
-            self._chain = opt.chain()
+    def _get_chain(self, opt: OptionsData) -> Optional[Chain]:
+        """The option chain, fetched at most once per candle. Returns None (with the
+        reason in `_chain_err`) when it cannot be used, so a data problem leaves the
+        option checks unchecked instead of hiding a chart signal."""
+        if self._chain is None and self._chain_err is None:
+            try:
+                ch = opt.chain()
+                if not any(l.delta and l.ltp > 0 for l in ch.legs.values()):
+                    self._chain_err = "option chain has no prices or deltas"
+                else:
+                    self._chain = ch
+            except Exception as e:
+                self._chain_err = f"option chain failed: {e}"[:120]
         return self._chain
 
     # ------------------------------------------------------------- buy helpers
@@ -116,7 +127,7 @@ class Engine:
             hit = self._levels_inside(ctx, entry, d, t1)
             cs.append(Check("No PDH/PDL or 100-strike inside T1", not hit, ", ".join(hit)))
         move_dir = 1 if entry >= ctx.day_open else -1
-        used = ctx.day_range / ctx.em if ctx.em and not math.isnan(ctx.em) else float("nan")
+        used = ctx.range_used
         cs.append(Check("Day range under 100% of expected move (this direction)",
                         None if math.isnan(used) else not (used >= 1 and move_dir == d), f"{used:.0%} used"))
         # The sheet's chop rule vetoes pullback buys. A breakout (B2, B3) starts from a
@@ -138,7 +149,13 @@ class Engine:
             if need_break:
                 cs.append(Check("Option 5-min close above its prior 3 highs", None, "not checked"))
             return cs, None
-        leg = pick_buy(self._get_chain(opt), d, ctx.dte)
+        chain = self._get_chain(opt)
+        if chain is None:
+            cs = [Check(f"Strike delta {lo:.2f}-{hi:.2f}, spread rule", None, self._chain_err or "")]
+            if need_break:
+                cs.append(Check("Option 5-min close above its prior 3 highs", None, "not checked"))
+            return cs, None
+        leg = pick_buy(chain, d, ctx.dte)
         if leg is None:
             return [Check(f"Strike with delta {lo:.2f}-{hi:.2f}", False, "none in range")], None
         leg = opt.fill_quote(leg)
@@ -298,9 +315,9 @@ class Engine:
         ]
 
     def _spread_checks(self, opt: Optional[OptionsData], spreads: list[Optional[CreditSpread]], min_credit: float):
-        if opt is None:
+        if opt is None or self._chain is None:
             return [Check(f"Strikes, credit at least {min_credit:.0f}, leg spreads at most ₹0.15", None,
-                          "option data not checked")], None
+                          self._chain_err or "option data not checked")], None
         if any(s is None for s in spreads):
             return [Check("Short strike in the delta range past the level, with a 100-point hedge", False,
                           "none found")], None
@@ -364,8 +381,9 @@ class Engine:
         picked = None
         if _passed(cs):
             spreads = None
-            if opt is not None:
-                ch, dr = self._get_chain(opt), sell_delta_range("S1", ctx.dte)
+            ch = self._get_chain(opt) if opt is not None else None
+            if ch is not None:
+                dr = sell_delta_range("S1", ctx.dte)
                 spreads = [pick_credit_spread(ch, "PE", ctx.spot(lo), dr, self.r),
                            pick_credit_spread(ch, "CE", ctx.spot(hi), dr, self.r)]
             ocs, picked = self._spread_checks(opt, spreads or [], self.r.min_credit_condor)
@@ -383,7 +401,7 @@ class Engine:
             return
         d = 1 if ctx.bias == "UP" else -1
         row, c = ctx.row, float(ctx.row["c"])
-        used = ctx.day_range / ctx.em if ctx.em and not math.isnan(ctx.em) else float("nan")
+        used = ctx.range_used
         cs = [
             Check(f"15-min bias {ctx.bias}", True),
             Check(f"Last 5-min futures close {'above' if d > 0 else 'below'} VWAP", d * (c - float(row["vwap"])) > 0,
@@ -396,11 +414,11 @@ class Engine:
         kind = "PE" if d > 0 else "CE"
         if _passed(cs):
             spreads = None
-            if opt is not None:
+            ch = self._get_chain(opt) if opt is not None else None
+            if ch is not None:
                 last12 = ctx.today.tail(12)
                 swing = float(last12["l"].min() if d > 0 else last12["h"].max())
                 lvl = min(float(row["vwap"]), swing) if d > 0 else max(float(row["vwap"]), swing)
-                ch = self._get_chain(opt)
                 sp = pick_credit_spread(ch, kind, ctx.spot(lvl), sell_delta_range("S2", ctx.dte), self.r)
                 spreads = [sp]
                 if sp is not None:
@@ -439,8 +457,9 @@ class Engine:
         kind = "CE" if up else "PE"
         if _passed(cs):
             spreads = None
-            if opt is not None:
-                spreads = [pick_credit_spread(self._get_chain(opt), kind, ctx.spot(ext),
+            ch = self._get_chain(opt) if opt is not None else None
+            if ch is not None:
+                spreads = [pick_credit_spread(ch, kind, ctx.spot(ext),
                                               sell_delta_range("S3", ctx.dte), self.r)]
             ocs, picked = self._spread_checks(opt, spreads or [], self.r.min_credit)
             cs = cs + ocs
