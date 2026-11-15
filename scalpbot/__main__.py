@@ -174,7 +174,7 @@ def cmd_replay(s: Settings, a) -> int:
 
 def cmd_backtest(s: Settings, a) -> int:
     """Runs every setup over a date range and simulates the trades on historical prices."""
-    from .backtest import Backtest, GrowwHistory, Options, report, write_trades
+    from .backtest import Backtest, GrowwHistory, Options, RateLimited, report, write_trades
 
     start, end = date.fromisoformat(a.start), date.fromisoformat(a.end)
     if end < start or end >= ist_now().date():
@@ -183,15 +183,21 @@ def cmd_backtest(s: Settings, a) -> int:
     g = Groww(s)
     g.connect(ist_now().date())
     print(f"Loading history {start} to {end} (cached in {s.data_dir / 'cache'}; the first run is slow)...")
-    hist = GrowwHistory(g, start, end, s.data_dir / "cache", chunk_days=a.chunk_days, vix_symbol=s.vix_groww_symbol)
-    bt = Backtest(hist, s.rules, Options(slippage=a.slippage, lot=a.lot, exit_at_t1=a.exit_at_t1,
-                                         use_options=not a.chart_only, capital=s.capital, risk_pct=s.risk_pct),
-                  load_events(s.events_file))
-    bt.run(start, end)
+    try:
+        hist = GrowwHistory(g, start, end, s.data_dir / "cache", chunk_days=a.chunk_days, pause=a.pause,
+                            vix_symbol=s.vix_groww_symbol)
+        bt = Backtest(hist, s.rules, Options(slippage=a.slippage, lot=a.lot, exit_at_t1=a.exit_at_t1,
+                                             use_options=not a.chart_only, capital=s.capital, risk_pct=s.risk_pct),
+                      load_events(s.events_file))
+        bt.run(start, end)
+    except RateLimited as e:
+        print(f"\nStopped: {e}")
+        return 3
     print(report(bt, start, end))
     out = s.data_dir / f"backtest_{start}_{end}.csv"
     write_trades(bt.trades, out)
-    print(f"\nTrades written to {out} · Groww requests this run: {hist.calls} ({hist.failed} failed)")
+    print(f"\nTrades written to {out} · Groww requests this run: {hist.calls} ({hist.failed} failed, "
+          f"{hist.waits} rate-limit waits)")
     if hist.failed:
         print("Failed requests mean missing candles (often expired option contracts); those alerts were not traded.")
     return 0
@@ -221,6 +227,7 @@ def main() -> int:
     b.add_argument("--chart-only", action="store_true",
                    help="no option prices: buys only, premium assumed to move delta x index")
     b.add_argument("--chunk-days", type=int, default=7, help="days of candles per Groww request (default 7)")
+    b.add_argument("--pause", type=float, default=0.4, help="seconds between Groww requests (default 0.4)")
     a = p.parse_args()
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
     s = Settings.from_env()

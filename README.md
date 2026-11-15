@@ -57,8 +57,11 @@ P&L per setup, and writes every trade to `data/backtest_START_END.csv`.
 | `--exit-at-t1` | Book the whole position at T1 instead of trailing under the 9 EMA | off |
 | `--chart-only` | Use no option prices: buys only, premium assumed to move delta x index, no time decay | off |
 | `--chunk-days` | Days of candles per Groww request | 7 |
+| `--pause` | Seconds between Groww requests; raise it if the rate limit keeps being hit | 0.4 |
 
 Candles are cached in `data/cache`, so only the first run over a period is slow.
+When Groww refuses a request for its rate limit the backtest waits and retries; if that
+keeps happening it stops, and running the same command again resumes from the cache.
 The report lists its own limits; the main ones are that 5-minute candles cannot order
 a stop and a target inside one candle (the stop is assumed), and that Groww has no
 historical bid/ask, so the spread rules are replaced by fixed slippage. Like the rest

@@ -112,13 +112,25 @@ def monthly_expiries(expiries: list[date]) -> list[date]:
     return sorted(last.values())
 
 
+class RateLimited(RuntimeError):
+    pass
+
+
+def is_rate_limit(e: Exception) -> bool:
+    text = f"{type(e).__name__} {getattr(e, 'msg', '')} {e}".lower()
+    return "ratelimit" in text or "rate limit" in text or "429" in str(getattr(e, "code", ""))
+
+
 class GrowwHistory:
     """Historical candles from Groww, cached on disk so a rerun costs no API calls."""
 
-    def __init__(self, groww, start: date, end: date, cache: Path, chunk_days: int = 7, pause: float = 0.2,
+    BACKOFF = (5, 15, 30, 60, 60, 60)      # seconds to wait after each rate-limit refusal
+
+    def __init__(self, groww, start: date, end: date, cache: Path, chunk_days: int = 7, pause: float = 0.4,
                  vix_symbol: str = ""):
         self.g, self.cache, self.chunk, self.pause = groww, cache, chunk_days, pause
-        self.calls = self.failed = 0
+        self.calls = self.failed = self.waits = 0
+        self._last = 0.0
         cache.mkdir(parents=True, exist_ok=True)
         warm = start - timedelta(days=10)                  # indicator warm-up and the prior session
         self.expiries = self._expiries(warm, end + timedelta(days=40))
@@ -141,6 +153,31 @@ class GrowwHistory:
             raise RuntimeError("No futures candles returned; check that expired contracts are available on your plan")
 
     # -- low level
+    def _call(self, fn, *a, **k):
+        """Every Groww request goes through here: spaced out, and retried with growing
+        waits when Groww says the rate limit was hit. Other errors are raised at once."""
+        for wait in (*self.BACKOFF, None):
+            gap = self.pause - (_time.monotonic() - self._last)
+            if gap > 0:
+                _time.sleep(gap)
+            self._last = _time.monotonic()
+            self.calls += 1
+            if self.calls % 100 == 0:
+                log.info("backtest data: %d Groww requests so far", self.calls)
+            try:
+                return fn(*a, **k)
+            except Exception as e:
+                if not is_rate_limit(e):
+                    raise
+                if wait is None:
+                    raise RateLimited(
+                        "Groww kept refusing requests for its rate limit. Wait a few minutes and run the same "
+                        "command again: everything downloaded so far is cached, so it resumes where it stopped. "
+                        "A higher --pause (for example 1.0) spaces requests out more.") from e
+                self.waits += 1
+                log.info("Groww rate limit hit; waiting %ds before retrying", wait)
+                _time.sleep(wait)
+
     def _expiries(self, a: date, b: date) -> list[date]:
         out, y, m = set(), a.year, a.month
         while (y, m) <= (b.year, b.month):
@@ -148,7 +185,7 @@ class GrowwHistory:
             if f.exists():
                 vals = json.loads(f.read_text())
             else:
-                p = self.g.api.get_expiries("NSE", "NIFTY", y, m, timeout=15)
+                p = self._call(self.g.api.get_expiries, "NSE", "NIFTY", y, m, timeout=15)
                 vals = [str(x)[:10] for x in (p.get("expiries") or [])]
                 if vals and date(y, m, 28) < date.today():
                     f.write_text(json.dumps(vals))
@@ -163,20 +200,21 @@ class GrowwHistory:
         from .groww import parse_candles
 
         err: Optional[Exception] = None
-        for attempt in range(3):
+        for attempt in range(2):
             try:
-                _time.sleep(self.pause)
-                self.calls += 1
-                p = self.g.api.get_historical_candles(
-                    "NSE", segment, symbol, f"{a} 09:00:00", f"{b} 15:45:00", "5minute", timeout=20)
+                p = self._call(self.g.api.get_historical_candles,
+                               "NSE", segment, symbol, f"{a} 09:00:00", f"{b} 15:45:00", "5minute", timeout=20)
                 df = parse_candles(p)
                 # Groww's history can run days behind: cache only chunks old enough to be complete
+                # (an empty answer is cached too, so a contract with no trades is not asked for again)
                 if b < date.today() - timedelta(days=7):
                     df.to_csv(f)
                 return df
+            except RateLimited:
+                raise                                      # stop the run; never treat this as "no data"
             except Exception as e:
                 err = e
-                _time.sleep(1.5 * (attempt + 1))
+                _time.sleep(1.0)
         self.failed += 1
         log.warning("No candles for %s %s..%s: %s", symbol, a, b, err)
         return pd.DataFrame(columns=["o", "h", "l", "c", "v"])
@@ -199,9 +237,10 @@ class GrowwHistory:
         want = groww_symbol(expiry, strike, kind)
         if expiry not in self._contracts:
             try:
-                self.calls += 1
-                p = self.g.api.get_contracts("NSE", "NIFTY", expiry.isoformat(), timeout=20)
+                p = self._call(self.g.api.get_contracts, "NSE", "NIFTY", expiry.isoformat(), timeout=20)
                 self._contracts[expiry] = [str(c) for c in (p.get("contracts") or [])]
+            except RateLimited:
+                raise
             except Exception as e:
                 log.warning("Contract list for %s unavailable: %s", expiry, e)
                 self._contracts[expiry] = []

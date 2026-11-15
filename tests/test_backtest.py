@@ -309,3 +309,80 @@ def test_groww_history_stitches_caches_and_survives_missing_contracts(tmp_path, 
     assert h2.option_day(date(2026, 10, 13), 25000, "CE", date(2026, 10, 12)) is not None
     assert g.api.candle_calls[-1][0] == "NSE-NIFTY-XX-25000-CE"
     assert h2.option_day(date(2026, 10, 13), 25100, "PE", date(2026, 10, 12)) is None and h2.failed == 1
+
+
+# rate limits -----------------------------------------------------------------
+class Limited(Exception):
+    def __init__(self):
+        super().__init__("Rate limit has breached for your request. Please try again later.")
+        self.msg, self.code = str(self), "GA005"
+
+
+class FlakyApi(FakeApi):
+    """Refuses the first `n` requests of every kind with Groww's rate-limit error."""
+
+    def __init__(self, n):
+        super().__init__()
+        self.left, self.refused = n, 0
+
+    def _gate(self):
+        if self.left > 0:
+            self.left -= 1
+            self.refused += 1
+            raise Limited()
+
+    def get_expiries(self, *a, **k):
+        self._gate()
+        return super().get_expiries(*a, **k)
+
+    def get_historical_candles(self, *a, **k):
+        self._gate()
+        return super().get_historical_candles(*a, **k)
+
+
+def test_rate_limit_is_waited_out(tmp_path, monkeypatch):
+    slept = []
+    monkeypatch.setattr("scalpbot.backtest._time.sleep", slept.append)
+    g = FakeG()
+    g.api = FlakyApi(3)                                # the very first requests are refused, as happened live
+    h = GrowwHistory(g, date(2026, 10, 5), date(2026, 10, 23), tmp_path, vix_symbol="NSE-INDIAVIX")
+    assert g.api.refused == 3 and h.waits == 3 and not h.fut.empty and h.failed == 0
+    assert [s for s in slept if s >= 5] == [5, 15, 30]              # growing waits, then it carries on
+
+
+def test_persistent_rate_limit_stops_cleanly_and_resumes(tmp_path, monkeypatch):
+    from scalpbot.backtest import RateLimited
+    monkeypatch.setattr("scalpbot.backtest._time.sleep", lambda *_: None)
+    g = FakeG()
+    g.api = FlakyApi(0)
+    orig = g.api.get_historical_candles
+    n = {"c": 0}
+
+    def candles(*a, **k):                              # works for a while, then Groww refuses everything
+        n["c"] += 1
+        if n["c"] > 4:
+            raise Limited()
+        return orig(*a, **k)
+
+    g.api.get_historical_candles = candles
+    with pytest.raises(RateLimited, match="resumes where it stopped"):
+        GrowwHistory(g, date(2026, 10, 5), date(2026, 10, 23), tmp_path, vix_symbol="NSE-INDIAVIX")
+    cached = len(list(tmp_path.glob("*.csv")))
+    assert cached == 4                                 # nothing downloaded was lost, nothing empty was cached
+    g.api.get_historical_candles = orig
+    before = len(g.api.candle_calls)
+    h = GrowwHistory(g, date(2026, 10, 5), date(2026, 10, 23), tmp_path, vix_symbol="NSE-INDIAVIX")
+    assert not h.fut.empty and len(list(tmp_path.glob("*.csv"))) > cached
+    first = GrowwHistory(FakeG(), date(2026, 10, 5), date(2026, 10, 23), tmp_path / "fresh", vix_symbol="NSE-INDIAVIX")
+    assert len(g.api.candle_calls) - before < first.calls         # the rerun skipped what was already cached
+
+
+def test_requests_are_spaced_and_other_errors_are_not_retried_as_rate_limits(tmp_path, monkeypatch):
+    from scalpbot.backtest import is_rate_limit
+    assert is_rate_limit(Limited()) and not is_rate_limit(RuntimeError("contract not found"))
+    clock = {"t": 0.0}
+    slept = []
+    monkeypatch.setattr("scalpbot.backtest._time.monotonic", lambda: clock["t"])
+    monkeypatch.setattr("scalpbot.backtest._time.sleep", lambda s: (slept.append(s), clock.__setitem__("t", clock["t"] + s)))
+    h = GrowwHistory(FakeG(), date(2026, 10, 5), date(2026, 10, 9), tmp_path, pause=0.4, vix_symbol="NSE-INDIAVIX")
+    assert h.calls > 3 and len(slept) >= h.calls - 1 and all(abs(s - 0.4) < 1e-9 for s in slept)
