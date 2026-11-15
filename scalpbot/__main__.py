@@ -188,12 +188,14 @@ def cmd_backtest(s: Settings, a) -> int:
     if end < start or end >= ist_now().date():
         print("END must be a past date on or after START")
         return 2
-    g = Groww(s)
-    g.connect(ist_now().date())
+    g = None
+    if not a.offline:
+        g = Groww(s)
+        g.connect(ist_now().date())
     print(f"Loading history {start} to {end} (cached in {s.data_dir / 'cache'}; the first run is slow)...")
     try:
         hist = GrowwHistory(g, start, end, s.data_dir / "cache", chunk_days=a.chunk_days, pause=a.pause,
-                            vix_symbol=s.vix_groww_symbol)
+                            vix_symbol=s.vix_groww_symbol, offline=a.offline)
         bt = Backtest(hist, s.rules, Options(slippage=a.slippage, lot=a.lot, exit_at_t1=a.exit_at_t1,
                                              use_options=not a.chart_only, capital=s.capital, risk_pct=s.risk_pct),
                       load_events(s.events_file))
@@ -236,6 +238,7 @@ def main() -> int:
                    help="no option prices: buys only, premium assumed to move delta x index")
     b.add_argument("--chunk-days", type=int, default=7, help="days of candles per Groww request (default 7)")
     b.add_argument("--pause", type=float, default=0.4, help="seconds between Groww requests (default 0.4)")
+    b.add_argument("--offline", action="store_true", help="use only data/cache; make no Groww requests")
     a = p.parse_args()
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
     s = Settings.from_env()

@@ -127,10 +127,13 @@ class GrowwHistory:
     BACKOFF = (5, 15, 30, 60, 60, 60)      # seconds to wait after each rate-limit refusal
 
     def __init__(self, groww, start: date, end: date, cache: Path, chunk_days: int = 7, pause: float = 0.4,
-                 vix_symbol: str = ""):
-        self.g, self.cache, self.chunk, self.pause = groww, cache, chunk_days, pause
+                 vix_symbol: str = "", offline: bool = False):
+        """`offline=True` reads only the disk cache and never calls Groww (groww may be None).
+        Anything not cached is treated as missing and counted in `failed`."""
+        self.g, self.cache, self.chunk, self.pause, self.offline = groww, cache, chunk_days, pause, offline
         self.calls = self.failed = self.waits = 0
         self._last = 0.0
+        self._memo: dict[str, pd.DataFrame] = {}           # candles already read this run
         cache.mkdir(parents=True, exist_ok=True)
         warm = start - timedelta(days=10)                  # indicator warm-up and the prior session
         self.expiries = self._expiries(warm, end + timedelta(days=40))
@@ -138,7 +141,8 @@ class GrowwHistory:
             raise RuntimeError("Groww returned no NIFTY expiries for the period")
         self._contracts: dict[date, list[str]] = {}
         self.spot = self._range("NSE-NIFTY", "CASH", warm, end)
-        vs = vix_symbol or (groww.vix.groww_symbol if groww.vix else "")
+        vs = vix_symbol or (groww.vix.groww_symbol if groww is not None and groww.vix else "") \
+            or ("NSE-INDIAVIX" if offline else "")
         self.vix = self._range(vs, "CASH", warm, end) if vs else None
         parts, prev = [], warm - timedelta(days=1)
         for m in monthly_expiries(self.expiries):
@@ -182,21 +186,31 @@ class GrowwHistory:
         out, y, m = set(), a.year, a.month
         while (y, m) <= (b.year, b.month):
             f = self.cache / f"expiries_{y}_{m:02d}.json"
+            part = self.cache / f"expiries_{y}_{m:02d}.partial.json"   # a month not over yet: offline use only
             if f.exists():
                 vals = json.loads(f.read_text())
+            elif self.offline:
+                vals = json.loads(part.read_text()) if part.exists() else []
             else:
                 p = self._call(self.g.api.get_expiries, "NSE", "NIFTY", y, m, timeout=15)
                 vals = [str(x)[:10] for x in (p.get("expiries") or [])]
-                if vals and date(y, m, 28) < date.today():
-                    f.write_text(json.dumps(vals))
+                if vals:
+                    (f if date(y, m, 28) < date.today() else part).write_text(json.dumps(vals))
             out.update(date.fromisoformat(v) for v in vals)
             y, m = (y + 1, 1) if m == 12 else (y, m + 1)
         return sorted(out)
 
     def _fetch(self, symbol: str, segment: str, a: date, b: date) -> pd.DataFrame:
         f = self.cache / f"{symbol.replace(' ', '_')}_{a}_{b}.csv"
+        if f.name in self._memo:
+            return self._memo[f.name]
         if f.exists():
-            return pd.read_csv(f, index_col=0, parse_dates=True)
+            df = pd.read_csv(f, index_col=0, parse_dates=True)
+            self._memo[f.name] = df
+            return df
+        if self.offline:
+            self.failed += 1
+            return pd.DataFrame(columns=["o", "h", "l", "c", "v"])
         from .groww import parse_candles
 
         err: Optional[Exception] = None
@@ -236,9 +250,17 @@ class GrowwHistory:
         Groww's own contract list for that expiry when it is available."""
         want = groww_symbol(expiry, strike, kind)
         if expiry not in self._contracts:
+            f = self.cache / f"contracts_{expiry}.json"
             try:
-                p = self._call(self.g.api.get_contracts, "NSE", "NIFTY", expiry.isoformat(), timeout=20)
-                self._contracts[expiry] = [str(c) for c in (p.get("contracts") or [])]
+                if f.exists():
+                    self._contracts[expiry] = json.loads(f.read_text())
+                elif self.offline:
+                    self._contracts[expiry] = []
+                else:
+                    p = self._call(self.g.api.get_contracts, "NSE", "NIFTY", expiry.isoformat(), timeout=20)
+                    self._contracts[expiry] = [str(c) for c in (p.get("contracts") or [])]
+                    if self._contracts[expiry] and expiry < date.today():
+                        f.write_text(json.dumps(self._contracts[expiry]))
             except RateLimited:
                 raise
             except Exception as e:
@@ -312,6 +334,19 @@ class Trade:
     rupees: float = 0.0           # one lot, after charges
     reason: str = ""
     detail: str = ""
+    # diagnostics (review branch): everything needed to re-score a trade without rerunning
+    dte: int = -1
+    bars: int = 0                 # 5-minute candles held
+    fills: int = 0                # orders filled, entry and exit together
+    slippage_pts: float = 0.0     # premium points given up to slippage (fills x slippage)
+    charges: float = 0.0          # rupees of brokerage, taxes and fees
+    mfe: float = 0.0              # best premium-point P&L seen while open (before slippage on exit)
+    mae: float = 0.0              # worst
+    S: float = 0.0                # buys: stop size in index points
+    t1_pts: float = 0.0           # buys: target distance in index points
+    delta: float = 0.0            # buys: delta used
+    signal_credit: float = 0.0    # spreads: credit when the alert fired
+    t1_hit: bool = False
 
 
 @dataclass
@@ -337,11 +372,32 @@ class Options:
     use_options: bool = True
     capital: float = 0.0
     risk_pct: float = 0.5
+    # Exit and fill parameters. Defaults are the cheat sheet's rules; the review sweeps change one at a time.
+    stop_mult: float = 1.5                    # buys: disaster stop = stop_mult x S x delta premium points
+    lock_after_t1: Optional[float] = 2.0      # buys: after T1 the stop moves to entry + this; None leaves it
+    trail_ema: bool = True                    # buys: after T1, exit on a 5-min close through the 9 EMA
+    time_stop_bars: int = 3                   # buys: 0 switches the time stop off
+    time_stop_frac: float = 0.5               # buys: needs this share of S by then
+    entry_max_gap: float = 3.0                # buys: skip if the index moved more than this before the fill
+    same_candle: str = "stop_first"           # buys: "stop_first" (pessimistic) or "target_first" (optimistic)
+    credit_target: float = 0.5                # spreads: buy back at this share of the credit
+    credit_stop: float = 1.5                  # spreads: stop when value reaches this multiple of the credit
+    index_stop: bool = True                   # spreads: apply the setup's index stop
+    entry_credit_min: Optional[float] = None  # spreads: minimum credit at the fill; None = the rule's minimum
+    stop_fill: str = "stop"                   # buys: "stop" fills at the stop price; "open_if_worse" fills at the
+                                              # candle's open when it opened already through the stop
 
 
 class Backtest:
-    def __init__(self, hist: History, rules: Rules, opts: Options, events: Optional[list[Event]] = None):
+    def __init__(self, hist: History, rules: Rules, opts: Options, events: Optional[list[Event]] = None,
+                 engine_factory=None, ctx_cache: Optional[dict] = None, frame: Optional[pd.DataFrame] = None):
         self.h, self.r, self.o, self.events = hist, rules, opts, events or []
+        self.engine_factory = engine_factory or (lambda rules, sizing: Engine(rules, sizing))
+        self.ctx_cache = ctx_cache                          # shared across sweep runs: contexts do not depend on rules
+        self.frame = frame                                  # futures frame with indicators, if already built
+        self.candle_log: list[dict] = []                    # one row per candle where a setup's pattern appeared
+        self.untraded: list[dict] = []                      # alerts that did not become trades, with the numbers
+        self.passed: dict[str, int] = {}                    # candles that passed every check, per setup
         self.trades: list[Trade] = []
         self.skipped: dict[str, int] = {}
         self.signals = 0
@@ -367,9 +423,9 @@ class Backtest:
 
     # -- run
     def run(self, start: date, end: date) -> list[Trade]:
-        df = add_indicators(session_only(self.h.fut))
+        df = self.frame if self.frame is not None else add_indicators(session_only(self.h.fut))
         spot = self.h.spot["c"] if self.h.spot is not None and not self.h.spot.empty else None
-        eng = Engine(self.r, Sizing(self.o.capital, self.o.risk_pct, self.o.lot))
+        eng = self.engine_factory(self.r, Sizing(self.o.capital, self.o.risk_pct, self.o.lot))
         days = sorted({d for d in df.index.date if start <= d <= end})
         for n, day in enumerate(days, 1):
             expiry = self._expiry(day)
@@ -384,7 +440,13 @@ class Backtest:
                 basis = 0.0
                 if spot is not None and ts in spot.index:
                     basis = float(fut_day.at[ts, "c"]) - float(spot.at[ts])
-                ctx = build_context(df, ts, self.h.vix, dte, self.events, basis, None, self.r.vix_fall_sharp_pct)
+                key = (ts, self.r.vix_fall_sharp_pct)
+                if self.ctx_cache is not None and key in self.ctx_cache:
+                    ctx = self.ctx_cache[key]
+                else:
+                    ctx = build_context(df, ts, self.h.vix, dte, self.events, basis, None, self.r.vix_fall_sharp_pct)
+                    if self.ctx_cache is not None:
+                        self.ctx_cache[key] = ctx
                 if ctx is None:
                     continue
                 if pos is not None:
@@ -396,22 +458,33 @@ class Backtest:
                     continue
                 opt = HistOptions(self.h, ts, ctx.spot(float(ctx.row["c"])), expiry) if self.o.use_options else None
                 sigs = eng.evaluate(ctx, opt)
+                base = {"day": day, "time": ctx.now.strftime("%H:%M"), "dte": dte,
+                        "atr": round(float(ctx.row["atr"]), 2), "adx": round(float(ctx.row["adx"]), 1)}
                 for rej in eng.rejects:                     # "B2 BUY CE: check; check"
                     head, _, checks = rej.partition(": ")
-                    setup = head.split()[0]
+                    setup, _, side = head.partition(" ")
                     self.near[setup] = self.near.get(setup, 0) + 1
                     for c in checks.split("; "):
                         self.blockers[(setup, c)] = self.blockers.get((setup, c), 0) + 1
+                    self.candle_log.append({**base, "setup": setup, "side": side, "failed": checks, "outcome": "blocked"})
                 for sig in sigs:
                     self.near[sig.setup] = self.near.get(sig.setup, 0) + 1
+                    self.passed[sig.setup] = self.passed.get(sig.setup, 0) + 1
+                    row = {**base, "setup": sig.setup, "side": sig.side, "failed": "", "outcome": "passed"}
+                    self.candle_log.append(row)
+                    if pos is not None:
+                        row["outcome"] = "passed, another alert taken on this candle"
+                        continue
                     if not st.can_send(sig.key, ctx.now, self.r.cooldown_min):
+                        row["outcome"] = "passed, in cooldown"
                         continue
                     self.signals += 1
+                    row["outcome"] = "alert"
                     st.mark_sent(sig.key, ctx.now)
                     pos = self._prepare(sig, ctx, opt, fut_day)
                     if pos is not None:
+                        pos.trade.dte = dte
                         st.trades += 1
-                        break
             if pos is not None and pos.open:               # data ran out before the flat-by time
                 self._exit(pos, pos.trade.entry_time or pos.trade.signal_time, None, "end of data")
                 self._close_day_state(st, pos.trade)
@@ -468,31 +541,48 @@ class Backtest:
 
     def _fill(self, pos: Position, ctx: Ctx) -> bool:
         """Fill at the open of the candle after the signal. False = no fill, drop the trade."""
-        sm, slip = pos.sig.sim, self.o.slippage
+        sm, slip, o, tr = pos.sig.sim, self.o.slippage, self.o, pos.trade
+        note = {"day": tr.day, "signal_time": tr.signal_time.strftime("%H:%M"), "setup": tr.setup, "side": tr.side,
+                "dte": tr.dte, "detail": tr.detail}
         bars = [self._bar(f, ctx.ts) for f in pos.frames]
         if any(b is None for b in bars):
             self._skip("no option candle at entry")
+            self.untraded.append({**note, "why": "no option candle at entry"})
             return False
         if sm["kind"] == "buy":
-            if abs(float(ctx.row["o"]) - pos.entry_fut) > 3.0:
+            gap = float(ctx.row["o"]) - pos.entry_fut
+            if abs(gap) > o.entry_max_gap:
                 self._skip("index moved more than 3 points before entry")
+                self.untraded.append({**note, "why": "index moved before entry", "gap_pts": round(gap, 1),
+                                      "direction": sm["d"]})
                 return False
             px = float(bars[0]["o"]) + slip
             pos.fills_buy.append(px)
-            pos.trade.entry = px
-            pos.stop_px = px - 1.5 * sm["S"] * sm["_delta"]
+            tr.entry = px
+            tr.S, tr.t1_pts, tr.delta = float(sm["S"]), float(sm["t1_pts"]), float(sm["_delta"])
+            pos.stop_px = px - o.stop_mult * sm["S"] * sm["_delta"]
         else:
-            credit = 0.0
+            credit = raw = 0.0
+            fills = []
             for b, sign in zip(bars, pos.signs):
                 px = float(b["o"]) + sign * slip          # buy the hedge higher, sell the short lower
-                (pos.fills_buy if sign > 0 else pos.fills_sell).append(px)
+                fills.append((sign, px))
                 credit -= sign * px
+                raw -= sign * float(b["o"])
             need = self.r.min_credit_condor if len(pos.frames) == 4 else self.r.min_credit
+            if o.entry_credit_min is not None:
+                need = o.entry_credit_min * (2 if len(pos.frames) == 4 else 1)
+            tr.signal_credit = float(sm.get("credit") or 0.0)
             if credit < need:
                 self._skip("credit below the minimum at entry")
+                self.untraded.append({**note, "why": "credit below the minimum at entry",
+                                      "signal_credit": round(tr.signal_credit, 2), "open_credit": round(raw, 2),
+                                      "entry_credit_after_slippage": round(credit, 2), "needed": need})
                 return False
-            pos.trade.entry = credit
-        pos.open, pos.trade.entry_time = True, ctx.ts.to_pydatetime()
+            for sign, px in fills:
+                (pos.fills_buy if sign > 0 else pos.fills_sell).append(px)
+            tr.entry = credit
+        pos.open, tr.entry_time = True, ctx.ts.to_pydatetime()
         return True
 
     # -- exit
@@ -514,7 +604,11 @@ class Backtest:
                 (pos.fills_sell if sign > 0 else pos.fills_buy).append(fill)
                 cost -= sign * fill
             tr.exit, tr.points = cost, tr.entry - cost
-        tr.rupees = tr.points * lot - round_trip_cost(pos.fills_buy, pos.fills_sell, lot)
+        tr.charges = round_trip_cost(pos.fills_buy, pos.fills_sell, lot)
+        tr.rupees = tr.points * lot - tr.charges
+        tr.fills = len(pos.fills_buy) + len(pos.fills_sell)
+        tr.slippage_pts = tr.fills * slip
+        tr.bars, tr.t1_hit = pos.bars, pos.t1_done
         tr.exit_time, tr.reason = pd.Timestamp(when).to_pydatetime(), reason
         self.trades.append(tr)
 
@@ -524,28 +618,40 @@ class Backtest:
             if not self._fill(pos, ctx):
                 return True
         pos.bars += 1
-        sm, row, now = pos.sig.sim, ctx.row, ctx.now
+        sm, row, now, o, tr = pos.sig.sim, ctx.row, ctx.now, self.o, pos.trade
         if sm["kind"] == "buy":
             d, bar = sm["d"], self._bar(pos.frames[0], ctx.ts)
             flat = time(14, 45) if sm["expiry_day"] else time(15, 0)
-            if bar is not None and float(bar["l"]) <= pos.stop_px:        # stop first: the conservative reading
-                self._exit(pos, ctx.ts, pos.stop_px, "stop after T1 (entry+2)" if pos.t1_done else "disaster stop")
-                return True
+            if bar is not None:
+                tr.mfe = max(tr.mfe, float(bar["h"]) - tr.entry)
+                tr.mae = min(tr.mae, float(bar["l"]) - tr.entry)
             reach = d * (float(row["h"] if d > 0 else row["l"]) - pos.entry_fut)
-            if not pos.t1_done and reach >= sm["t1_pts"]:
+            t1_now = not pos.t1_done and reach >= sm["t1_pts"]
+            stop_hit = bar is not None and float(bar["l"]) <= pos.stop_px
+            # A 5-minute candle cannot say which came first. "stop_first" is the pessimistic reading
+            # (the default); "target_first" is the optimistic one. The truth lies between the two.
+            if stop_hit and not (t1_now and o.same_candle == "target_first"):
+                px = pos.stop_px
+                if o.stop_fill == "open_if_worse":
+                    px = min(px, float(bar["o"]))
+                self._exit(pos, ctx.ts, px, "stop after T1 (entry+2)" if pos.t1_done else "disaster stop")
+                return True
+            if t1_now:
                 pos.t1_done = True
-                if self.o.exit_at_t1:
-                    self._exit(pos, ctx.ts, pos.trade.entry + sm["t1_pts"] * sm["_delta"], "T1")
+                if o.exit_at_t1:
+                    self._exit(pos, ctx.ts, tr.entry + sm["t1_pts"] * sm["_delta"], "T1")
                     return True
-                pos.stop_px = pos.trade.entry + 2.0       # one lot: stop to entry + 2, trail under the 9 EMA
+                if o.lock_after_t1 is not None:
+                    pos.stop_px = tr.entry + o.lock_after_t1   # one lot: stop to entry + 2, trail under the 9 EMA
             close = float(row["c"])
-            if pos.t1_done and d * (close - float(row["ema9"])) < 0:
+            if pos.t1_done and o.trail_ema and d * (close - float(row["ema9"])) < 0:
                 self._exit(pos, ctx.ts, None, "9 EMA trail")
                 return True
             if not pos.t1_done and d * (close - sm["inval"]) < 0:
                 self._exit(pos, ctx.ts, None, "invalidation close")
                 return True
-            if not pos.t1_done and pos.bars == 3 and d * (close - pos.entry_fut) < 0.5 * sm["S"]:
+            if (not pos.t1_done and o.time_stop_bars and pos.bars == o.time_stop_bars
+                    and d * (close - pos.entry_fut) < o.time_stop_frac * sm["S"]):
                 self._exit(pos, ctx.ts, None, "time stop")
                 return True
             if now.time() >= flat:
@@ -557,8 +663,9 @@ class Backtest:
         flat = time(13, 30) if (pos.sig.setup == "S1" and sm["expiry_day"]) else time(15, 0)
         if all(b is not None for b in bars):
             value = -sum(sign * float(b["c"]) for b, sign in zip(bars, pos.signs))
-            credit, close = pos.trade.entry, float(row["c"])
-            if value >= 1.5 * credit:
+            credit, close = tr.entry, float(row["c"])
+            tr.mfe, tr.mae = max(tr.mfe, credit - value), min(tr.mae, credit - value)
+            if value >= o.credit_stop * credit:
                 self._exit(pos, ctx.ts, None, "1.5x credit stop")
                 return True
             stop = sm["stop"]
@@ -569,10 +676,10 @@ class Backtest:
                 hit = stop[1] * (close - float(row["vwap"])) < 0
             elif stop[0] == "extreme":
                 hit = stop[2] * (close - stop[1]) > 0
-            if hit:
+            if hit and o.index_stop:
                 self._exit(pos, ctx.ts, None, "index stop")
                 return True
-            if value <= 0.5 * credit:
+            if value <= o.credit_target * credit:
                 self._exit(pos, ctx.ts, None, "50% target")
                 return True
         if now.time() >= flat:
@@ -648,7 +755,12 @@ def write_trades(trades: list[Trade], path: Path) -> None:
     with path.open("w", newline="") as f:
         w = csv.writer(f)
         w.writerow(["day", "setup", "side", "signal_time", "entry_time", "exit_time", "entry", "exit",
-                    "points", "rupees_1lot", "exit_reason", "detail"])
+                    "points", "rupees_1lot", "exit_reason", "detail",
+                    "dte", "bars", "fills", "slippage_pts", "charges", "mfe_pts", "mae_pts", "S", "t1_pts", "delta",
+                    "signal_credit", "t1_hit"])
         for t in trades:
             w.writerow([t.day, t.setup, t.side, t.signal_time, t.entry_time, t.exit_time, f"{t.entry:.2f}",
-                        f"{t.exit:.2f}", f"{t.points:.2f}", f"{t.rupees:.0f}", t.reason, t.detail])
+                        f"{t.exit:.2f}", f"{t.points:.2f}", f"{t.rupees:.0f}", t.reason, t.detail,
+                        t.dte, t.bars, t.fills, f"{t.slippage_pts:.2f}", f"{t.charges:.2f}", f"{t.mfe:.2f}",
+                        f"{t.mae:.2f}", f"{t.S:.1f}", f"{t.t1_pts:.1f}", f"{t.delta:.2f}", f"{t.signal_credit:.2f}",
+                        int(t.t1_hit)])
