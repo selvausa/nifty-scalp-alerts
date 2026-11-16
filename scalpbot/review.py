@@ -50,6 +50,8 @@ class Experiment:
     waive: list = field(default_factory=list)      # "SETUP:check name prefix" or "*:prefix" treated as passed
     setups: Optional[list] = None                  # run only these setups
     sell_delta: dict = field(default_factory=dict)  # {"S2": [0.20, 0.35]} short-strike delta range override
+    b1_t1: str = "sheet"             # B1 target: "sheet" = 2 x S capped at the VWAP +1 SD band (as coded);
+                                     # "uncapped" = always 2 x S; "min20" = skip when the capped target is under 20 points
 
 
 class TunedEngine(Engine):
@@ -66,6 +68,17 @@ class TunedEngine(Engine):
             if who in ("*", self._cur) and name.startswith(prefix):
                 return True
         return False
+
+    def _buy_signal(self, ctx, opt, setup, title, d, inval, inval_text, cs, level_check, need_break,
+                    t1_cap=None, extra_target=None):
+        mode = self.exp.b1_t1
+        if setup == "B1" and mode != "sheet" and t1_cap is not None:
+            if mode == "uncapped":
+                t1_cap = None
+            elif mode == "min20" and 0 < t1_cap < 20:
+                cs = cs + [setups_mod.Check("T1 at least 20 index points", False, f"band {t1_cap:.1f} away")]
+        return super()._buy_signal(ctx, opt, setup, title, d, inval, inval_text, cs, level_check, need_break,
+                                   t1_cap=t1_cap, extra_target=extra_target)
 
     def _ok(self, checks) -> bool:
         return all(c.ok is not False or self._waived(c.name) for c in checks)

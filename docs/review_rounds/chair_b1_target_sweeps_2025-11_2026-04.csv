@@ -1,0 +1,25 @@
+experiment,group,change,setup,alerts,trades,win_pct,break_even_win_pct,avg_win,avg_loss,expectancy_per_trade,net_rupees,net_points,max_drawdown,worst_trade,exits,not_traded,missing_cache_files
+b1_t1_uncapped,exit-risk,B1 target always 2 x S (ignore the VWAP +1 SD band cap),B1,7,7,42.9,48.2,629,585,-64,-451,-0.4,1699,-1373,time stop 4; flat-by time 1; invalidation close 1; disaster stop 1,,0
+b1_t1_uncapped,exit-risk,B1 target always 2 x S (ignore the VWAP +1 SD band cap),B3,1,1,0.0,100.0,0,442,-442,-442,-5.9,0,-442,time stop 1,,0
+b1_t1_uncapped,exit-risk,B1 target always 2 x S (ignore the VWAP +1 SD band cap),S2,42,15,20.0,67.1,179,365,-257,-3849,-32.0,3753,-599,index stop 8; flat-by time 7,,0
+b1_t1_uncapped,exit-risk,B1 target always 2 x S (ignore the VWAP +1 SD band cap),ALL,51,23,26.1,51.1,404,422,-206,-4742,-38.3,5440,-1373,flat-by time 8; index stop 8; time stop 5; invalidation close 1; disaster stop 1,credit below the minimum at entry 27; index moved more than 3 points before entry 1,0
+b1_t1_min20,entry-filter,B1: skip when the band-capped target is under 20 index points,B1,2,2,50.0,71.9,98,250,-76,-152,-0.4,0,-250,time stop 2,,0
+b1_t1_min20,entry-filter,B1: skip when the band-capped target is under 20 index points,B3,1,1,0.0,100.0,0,442,-442,-442,-5.9,0,-442,time stop 1,,0
+b1_t1_min20,entry-filter,B1: skip when the band-capped target is under 20 index points,S2,42,15,20.0,67.1,179,365,-257,-3849,-32.0,3753,-599,index stop 8; flat-by time 7,,0
+b1_t1_min20,entry-filter,B1: skip when the band-capped target is under 20 index points,ALL,46,18,22.2,69.6,159,363,-247,-4443,-38.3,4193,-599,index stop 8; flat-by time 7; time stop 3,credit below the minimum at entry 27; index moved more than 3 points before entry 1,0
+b1_t1_uncapped_gapfill,fidelity,"B1 target 2 x S, and stops the candle opened through fill at the open",B1,7,7,42.9,48.2,629,585,-64,-451,-0.4,1699,-1373,time stop 4; flat-by time 1; invalidation close 1; disaster stop 1,,0
+b1_t1_uncapped_gapfill,fidelity,"B1 target 2 x S, and stops the candle opened through fill at the open",B3,1,1,0.0,100.0,0,442,-442,-442,-5.9,0,-442,time stop 1,,0
+b1_t1_uncapped_gapfill,fidelity,"B1 target 2 x S, and stops the candle opened through fill at the open",S2,42,15,20.0,67.1,179,365,-257,-3849,-32.0,3753,-599,index stop 8; flat-by time 7,,0
+b1_t1_uncapped_gapfill,fidelity,"B1 target 2 x S, and stops the candle opened through fill at the open",ALL,51,23,26.1,51.1,404,422,-206,-4742,-38.3,5440,-1373,flat-by time 8; index stop 8; time stop 5; invalidation close 1; disaster stop 1,credit below the minimum at entry 27; index moved more than 3 points before entry 1,0
+b1_t1_min20_gapfill,fidelity,"B1 skip targets under 20, and stops fill at the open when gapped",B1,2,2,50.0,71.9,98,250,-76,-152,-0.4,0,-250,time stop 2,,0
+b1_t1_min20_gapfill,fidelity,"B1 skip targets under 20, and stops fill at the open when gapped",B3,1,1,0.0,100.0,0,442,-442,-442,-5.9,0,-442,time stop 1,,0
+b1_t1_min20_gapfill,fidelity,"B1 skip targets under 20, and stops fill at the open when gapped",S2,42,15,20.0,67.1,179,365,-257,-3849,-32.0,3753,-599,index stop 8; flat-by time 7,,0
+b1_t1_min20_gapfill,fidelity,"B1 skip targets under 20, and stops fill at the open when gapped",ALL,46,18,22.2,69.6,159,363,-247,-4443,-38.3,4193,-599,index stop 8; flat-by time 7; time stop 3,credit below the minimum at entry 27; index moved more than 3 points before entry 1,0
+b1_t1_uncapped_exit_t1,exit-risk,B1 target 2 x S and sell everything at T1,B1,7,7,42.9,50.8,565,585,-92,-642,-3.3,1699,-1373,time stop 4; T1 1; invalidation close 1; disaster stop 1,,0
+b1_t1_uncapped_exit_t1,exit-risk,B1 target 2 x S and sell everything at T1,B3,1,1,0.0,100.0,0,442,-442,-442,-5.9,0,-442,time stop 1,,0
+b1_t1_uncapped_exit_t1,exit-risk,B1 target 2 x S and sell everything at T1,S2,42,15,20.0,67.1,179,365,-257,-3849,-32.0,3753,-599,index stop 8; flat-by time 7,,0
+b1_t1_uncapped_exit_t1,exit-risk,B1 target 2 x S and sell everything at T1,ALL,51,23,26.1,53.1,372,422,-214,-4933,-41.2,5440,-1373,index stop 8; flat-by time 7; time stop 5; T1 1; invalidation close 1; disaster stop 1,credit below the minimum at entry 27; index moved more than 3 points before entry 1,0
+b1_t1_min20_exit_t1,exit-risk,B1 skip targets under 20 and sell everything at T1,B1,2,2,50.0,71.9,98,250,-76,-152,-0.4,0,-250,time stop 2,,0
+b1_t1_min20_exit_t1,exit-risk,B1 skip targets under 20 and sell everything at T1,B3,1,1,0.0,100.0,0,442,-442,-442,-5.9,0,-442,time stop 1,,0
+b1_t1_min20_exit_t1,exit-risk,B1 skip targets under 20 and sell everything at T1,S2,42,15,20.0,67.1,179,365,-257,-3849,-32.0,3753,-599,index stop 8; flat-by time 7,,0
+b1_t1_min20_exit_t1,exit-risk,B1 skip targets under 20 and sell everything at T1,ALL,46,18,22.2,69.6,159,363,-247,-4443,-38.3,4193,-599,index stop 8; flat-by time 7; time stop 3,credit below the minimum at entry 27; index moved more than 3 points before entry 1,0

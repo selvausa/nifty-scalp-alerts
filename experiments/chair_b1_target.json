@@ -1,0 +1,8 @@
+[
+ {"name":"b1_t1_uncapped","group":"exit-risk","change":"B1 target always 2 x S (ignore the VWAP +1 SD band cap)","b1_t1":"uncapped"},
+ {"name":"b1_t1_min20","group":"entry-filter","change":"B1: skip when the band-capped target is under 20 index points","b1_t1":"min20"},
+ {"name":"b1_t1_uncapped_gapfill","group":"fidelity","change":"B1 target 2 x S, and stops the candle opened through fill at the open","b1_t1":"uncapped","options":{"stop_fill":"open_if_worse"}},
+ {"name":"b1_t1_min20_gapfill","group":"fidelity","change":"B1 skip targets under 20, and stops fill at the open when gapped","b1_t1":"min20","options":{"stop_fill":"open_if_worse"}},
+ {"name":"b1_t1_uncapped_exit_t1","group":"exit-risk","change":"B1 target 2 x S and sell everything at T1","b1_t1":"uncapped","options":{"exit_at_t1":true}},
+ {"name":"b1_t1_min20_exit_t1","group":"exit-risk","change":"B1 skip targets under 20 and sell everything at T1","b1_t1":"min20","options":{"exit_at_t1":true}}
+]
