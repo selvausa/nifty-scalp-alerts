@@ -1,0 +1,3 @@
+setup,trades,missing,win_pct,be_win_pct,avg_win,avg_loss,exp_per_trade,ci95,net,gross_pts,charges,worst,dd,exits,slip
+TREND10,43,0,48.8,35.2,4122,2243,866,-245 to 2077,37225,619.4,3033,-4775,19760,14:45 exit 30; stop (OR mid) 13,0.1
+TREND10,43,0,48.8,36.1,4070,2295,814,-297 to 2025,34991,585.0,3031,-4827,20592,14:45 exit 30; stop (OR mid) 13,0.5

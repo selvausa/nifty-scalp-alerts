@@ -1,0 +1,113 @@
+days 245 trend days 89 (36%)
+median EM 203 median OR30 96 median day range 204 median VIX 13.2
+
+-- trend-day share by or30_em
+           days  trend_pct  med_range      med_em
+b                                                
+<0.25         8       38.0     156.45  192.908644
+0.25-0.35    37       24.0     187.60  203.123285
+0.35-0.5    107       35.0     191.05  200.452299
+>0.5         93       43.0     266.25  206.234712
+
+-- trend-day share by gap_pct
+            days  trend_pct  med_range      med_em
+b                                                 
+<-0.5%        28       57.0    280.900  281.583996
+-0.5..-0.2    40       28.0    197.700  203.907170
+-0.2..0.2    106       39.0    196.850  193.565933
+0.2..0.5      46       33.0    199.350  206.038356
+>0.5%         24       25.0    240.675  227.034353
+
+-- trend-day share by vix
+       days  trend_pct  med_range      med_em
+b                                            
+<12      77       30.0    155.500  172.999193
+12-15    92       35.0    200.125  203.426628
+15-18    29       38.0    262.300  241.671013
+>18      47       49.0    297.000  291.467755
+
+-- trend-day share by adx1015
+       days  trend_pct  med_range      med_em
+b                                            
+<20      30       30.0     201.20  195.338938
+20-25    31       42.0     190.25  195.539262
+25-30    41       39.0     214.30  209.858736
+>30     143       36.0     203.05  202.540501
+
+-- day of week (NIFTY expiry Tue; dte = weekdays to expiry)
+     days  med_range  trend_pct
+dow                            
+Fri    48     211.00       0.35
+Mon    50     195.23       0.46
+Sun     1     864.35       1.00
+Thu    48     206.40       0.31
+Tue    47     201.40       0.30
+Wed    51     203.05       0.37
+     days  med_range  trend_pct
+dte                            
+0      51     204.10       0.35
+1      51     195.35       0.43
+2      47     210.70       0.34
+3      49     206.05       0.31
+4      47     203.05       0.38
+
+-- median 5-min spot range (index points) by half hour
+hh
+09:00    40.4
+09:30    25.5
+10:00    21.1
+10:30    18.2
+11:00    16.8
+11:30    16.5
+12:00    16.4
+12:30    16.5
+13:00    16.7
+13:30    18.1
+14:00    18.7
+14:30    19.5
+15:00    18.7
+
+-- per half-year, rupees per trade
+                           size    mean      sum
+slip setup     half                             
+0.1  IFLY      H1 Nov-Apr    21   580.0  12182.0
+               H2 May-Oct    24  -386.0  -9254.0
+     IFLY-R    H1 Nov-Apr     5  1576.0   7882.0
+               H2 May-Oct    15  -375.0  -5619.0
+     IFLY-W100 H1 Nov-Apr    21   164.0   3453.0
+               H2 May-Oct    24  -366.0  -8778.0
+     IFLY-W200 H1 Nov-Apr    21   709.0  14896.0
+               H2 May-Oct    24  -319.0  -7646.0
+     ORB30     H1 Nov-Apr    60  -205.0 -12317.0
+               H2 May-Oct    64  -290.0 -18541.0
+     VWAPF     H1 Nov-Apr    23  -228.0  -5242.0
+               H2 May-Oct    17   -42.0   -717.0
+0.5  IFLY      H1 Nov-Apr    21   391.0   8206.0
+               H2 May-Oct    24  -574.0 -13772.0
+     IFLY-R    H1 Nov-Apr     5  1405.0   7025.0
+               H2 May-Oct    15  -551.0  -8267.0
+     IFLY-W100 H1 Nov-Apr    21   -20.0   -420.0
+               H2 May-Oct    24  -579.0 -13898.0
+     IFLY-W200 H1 Nov-Apr    21   529.0  11102.0
+               H2 May-Oct    24  -565.0 -13561.0
+     ORB30     H1 Nov-Apr    60  -257.0 -15435.0
+               H2 May-Oct    64  -342.0 -21867.0
+     VWAPF     H1 Nov-Apr    23  -280.0  -6438.0
+               H2 May-Oct    17   -94.0  -1600.0
+
+ORB30: index move entry->exit in signal direction: mean -3.8 pts, median -3.9, n 124
+
+VWAPF: index move entry->exit in signal direction: mean -2.9 pts, median -0.8, n 40
+
+IFLY credit pts: median 83.0 min 61.39999999999999 max 116.25 | max loss pts median 67.0
+             size   mean     sum
+b                               
+(0.0, 0.35]     4 -142.0  -567.0
+(0.35, 0.5]    16  177.0  2830.0
+(0.5, 0.7]     16  534.0  8549.0
+(0.7, 5.0]      9 -876.0 -7884.0
+            size   mean     sum
+g                              
+(0.0, 0.2]    22  194.0  4269.0
+(0.2, 0.5]    17  160.0  2714.0
+(0.5, 9.0]     6 -676.0 -4055.0
