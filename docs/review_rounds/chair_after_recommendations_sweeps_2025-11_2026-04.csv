@@ -1,0 +1,15 @@
+experiment,group,change,setup,alerts,trades,win_pct,break_even_win_pct,avg_win,avg_loss,expectancy_per_trade,net_rupees,net_points,max_drawdown,worst_trade,exits,not_traded,missing_cache_files
+ref_fixed_all_setups,fidelity,"corrected reference: all setups, B1 target floor 20, gapped stops fill at the open",B1,2,2,50.0,71.9,98,250,-76,-152,-0.4,0,-250,time stop 2,,0
+ref_fixed_all_setups,fidelity,"corrected reference: all setups, B1 target floor 20, gapped stops fill at the open",B3,1,1,0.0,100.0,0,442,-442,-442,-5.9,0,-442,time stop 1,,0
+ref_fixed_all_setups,fidelity,"corrected reference: all setups, B1 target floor 20, gapped stops fill at the open",S2,42,15,20.0,67.1,179,365,-257,-3849,-32.0,3753,-599,index stop 8; flat-by time 7,,0
+ref_fixed_all_setups,fidelity,"corrected reference: all setups, B1 target floor 20, gapped stops fill at the open",ALL,46,18,22.2,69.6,159,363,-247,-4443,-38.3,4193,-599,index stop 8; flat-by time 7; time stop 3,credit below the minimum at entry 27; index moved more than 3 points before entry 1,0
+after_recs_slip0.5,drop-setup,"after the recommendations: buys only (S1, S2, S3 paused), B1 target floor 20, gapped stops at the open, 1 lot, slippage 0.5",B1,3,3,66.7,40.4,369,250,163,488,10.6,0,-250,time stop 2; flat-by time 1,,0
+after_recs_slip0.5,drop-setup,"after the recommendations: buys only (S1, S2, S3 paused), B1 target floor 20, gapped stops at the open, 1 lot, slippage 0.5",B3,1,1,0.0,100.0,0,442,-442,-442,-5.9,0,-442,time stop 1,,0
+after_recs_slip0.5,drop-setup,"after the recommendations: buys only (S1, S2, S3 paused), B1 target floor 20, gapped stops at the open, 1 lot, slippage 0.5",ALL,5,4,50.0,48.4,369,346,12,46,4.6,442,-442,time stop 3; flat-by time 1,index moved more than 3 points before entry 1,0
+after_recs_slip0.1,drop-setup,"same, slippage 0.1",B1,3,3,66.7,32.0,421,198,215,644,13.0,0,-198,time stop 2; flat-by time 1,,0
+after_recs_slip0.1,drop-setup,"same, slippage 0.1",B3,1,1,0.0,100.0,0,390,-390,-390,-5.1,0,-390,time stop 1,,0
+after_recs_slip0.1,drop-setup,"same, slippage 0.1",ALL,5,4,50.0,41.1,421,294,64,254,7.8,390,-390,time stop 3; flat-by time 1,index moved more than 3 points before entry 1,0
+ref_fixed_slip0.1,fidelity,corrected reference at slippage 0.1,B1,2,2,50.0,56.9,150,198,-24,-48,1.2,0,-198,time stop 2,,0
+ref_fixed_slip0.1,fidelity,corrected reference at slippage 0.1,B3,1,1,0.0,100.0,0,390,-390,-390,-5.1,0,-390,time stop 1,,0
+ref_fixed_slip0.1,fidelity,corrected reference at slippage 0.1,S2,31,30,30.0,47.0,285,252,-91,-2731,11.1,3621,-495,flat-by time 16; index stop 13; 50% target 1,,0
+ref_fixed_slip0.1,fidelity,corrected reference at slippage 0.1,ALL,35,33,30.3,48.5,271,256,-96,-3169,7.2,3861,-495,flat-by time 16; index stop 13; time stop 3; 50% target 1,credit below the minimum at entry 1; index moved more than 3 points before entry 1,0

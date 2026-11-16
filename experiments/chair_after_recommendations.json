@@ -1,0 +1,6 @@
+[
+ {"name":"ref_fixed_all_setups","group":"fidelity","change":"corrected reference: all setups, B1 target floor 20, gapped stops fill at the open","b1_t1":"min20","options":{"stop_fill":"open_if_worse"}},
+ {"name":"after_recs_slip0.5","group":"drop-setup","change":"after the recommendations: buys only (S1, S2, S3 paused), B1 target floor 20, gapped stops at the open, 1 lot, slippage 0.5","b1_t1":"min20","setups":["B1","B2","B3"],"options":{"stop_fill":"open_if_worse"}},
+ {"name":"after_recs_slip0.1","group":"drop-setup","change":"same, slippage 0.1","b1_t1":"min20","setups":["B1","B2","B3"],"options":{"stop_fill":"open_if_worse","slippage":0.1}},
+ {"name":"ref_fixed_slip0.1","group":"fidelity","change":"corrected reference at slippage 0.1","b1_t1":"min20","options":{"stop_fill":"open_if_worse","slippage":0.1}}
+]

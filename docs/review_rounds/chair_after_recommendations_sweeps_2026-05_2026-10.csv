@@ -1,0 +1,19 @@
+experiment,group,change,setup,alerts,trades,win_pct,break_even_win_pct,avg_win,avg_loss,expectancy_per_trade,net_rupees,net_points,max_drawdown,worst_trade,exits,not_traded,missing_cache_files
+ref_fixed_all_setups,fidelity,"corrected reference: all setups, B1 target floor 20, gapped stops fill at the open",B1,10,6,33.3,90.7,58,563,-356,-2137,-27.1,1723,-912,time stop 3; invalidation close 2; stop after T1 (entry+2) 1,,0
+ref_fixed_all_setups,fidelity,"corrected reference: all setups, B1 target floor 20, gapped stops fill at the open",B2,1,1,0.0,100.0,0,364,-364,-364,-4.6,0,-364,time stop 1,,0
+ref_fixed_all_setups,fidelity,"corrected reference: all setups, B1 target floor 20, gapped stops fill at the open",B3,1,1,0.0,100.0,0,939,-939,-939,-13.5,0,-939,disaster stop 1,,0
+ref_fixed_all_setups,fidelity,"corrected reference: all setups, B1 target floor 20, gapped stops fill at the open",S2,48,22,13.6,54.1,306,361,-270,-5937,-53.3,5832,-680,index stop 14; flat-by time 7; 50% target 1,,0
+ref_fixed_all_setups,fidelity,"corrected reference: all setups, B1 target floor 20, gapped stops fill at the open",ALL,60,30,16.7,66.8,207,416,-313,-9377,-98.6,9272,-939,index stop 14; flat-by time 7; time stop 4; invalidation close 2; 50% target 1; stop after T1 (entry+2) 1; disaster stop 1,credit below the minimum at entry 26; index moved more than 3 points before entry 4,0
+after_recs_slip0.5,drop-setup,"after the recommendations: buys only (S1, S2, S3 paused), B1 target floor 20, gapped stops at the open, 1 lot, slippage 0.5",B1,10,6,33.3,90.7,58,563,-356,-2137,-27.1,1723,-912,time stop 3; invalidation close 2; stop after T1 (entry+2) 1,,0
+after_recs_slip0.5,drop-setup,"after the recommendations: buys only (S1, S2, S3 paused), B1 target floor 20, gapped stops at the open, 1 lot, slippage 0.5",B2,1,1,0.0,100.0,0,364,-364,-364,-4.6,0,-364,time stop 1,,0
+after_recs_slip0.5,drop-setup,"after the recommendations: buys only (S1, S2, S3 paused), B1 target floor 20, gapped stops at the open, 1 lot, slippage 0.5",B3,1,1,0.0,100.0,0,939,-939,-939,-13.5,0,-939,disaster stop 1,,0
+after_recs_slip0.5,drop-setup,"after the recommendations: buys only (S1, S2, S3 paused), B1 target floor 20, gapped stops at the open, 1 lot, slippage 0.5",ALL,12,8,25.0,91.1,58,593,-430,-3440,-45.3,3026,-939,time stop 4; invalidation close 2; stop after T1 (entry+2) 1; disaster stop 1,index moved more than 3 points before entry 4,0
+after_recs_slip0.1,drop-setup,"same, slippage 0.1",B1,10,6,33.3,84.1,97,511,-309,-1851,-22.7,1489,-860,time stop 3; invalidation close 2; stop after T1 (entry+2) 1,,0
+after_recs_slip0.1,drop-setup,"same, slippage 0.1",B2,1,1,0.0,100.0,0,312,-312,-312,-3.8,0,-312,time stop 1,,0
+after_recs_slip0.1,drop-setup,"same, slippage 0.1",B3,1,1,0.0,100.0,0,913,-913,-913,-13.1,0,-913,disaster stop 1,,0
+after_recs_slip0.1,drop-setup,"same, slippage 0.1",ALL,12,8,25.0,84.9,97,545,-385,-3076,-39.7,2714,-913,time stop 4; invalidation close 2; stop after T1 (entry+2) 1; disaster stop 1,index moved more than 3 points before entry 4,0
+ref_fixed_slip0.1,fidelity,corrected reference at slippage 0.1,B1,9,5,20.0,79.3,134,511,-382,-1911,-24.6,1549,-860,time stop 3; invalidation close 2,,0
+ref_fixed_slip0.1,fidelity,corrected reference at slippage 0.1,B2,1,1,0.0,100.0,0,312,-312,-312,-3.8,0,-312,time stop 1,,0
+ref_fixed_slip0.1,fidelity,corrected reference at slippage 0.1,B3,1,1,0.0,100.0,0,913,-913,-913,-13.1,0,-913,disaster stop 1,,0
+ref_fixed_slip0.1,fidelity,corrected reference at slippage 0.1,S2,38,36,25.0,60.5,209,320,-188,-6771,-41.8,6770,-701,index stop 23; flat-by time 12; 50% target 1,,0
+ref_fixed_slip0.1,fidelity,corrected reference at slippage 0.1,ALL,49,43,23.3,64.2,201,361,-230,-9907,-83.4,9906,-913,index stop 23; flat-by time 12; time stop 4; invalidation close 2; 50% target 1; disaster stop 1,index moved more than 3 points before entry 4; credit below the minimum at entry 2,0
